@@ -263,6 +263,8 @@ if(typeof L === 'undefined'){
 
   /* ── 기준값 구성 ── */
   .flow{display:grid;grid-template-columns:1fr 1fr;}
+  .flow.one{grid-template-columns:1fr;}
+  .flow.one > div:first-child{border-right:none;}
   .flow > div{padding:14px 15px;}
   .flow > div:first-child{border-right:1px solid var(--line-2);}
   .flow .fk{font-size:11px;color:var(--ink-3);font-weight:600;display:flex;align-items:center;gap:5px;}
@@ -570,17 +572,6 @@ if(typeof L === 'undefined'){
         </div>
       </div>
 
-      <div class="sec-title">실측 데이터 넣기</div>
-      <div class="card prose">
-        형식: <code>poi,hour,day_type,population</code><br>
-        poi는 station · market · university, hour는 0~23, day_type은 weekday 또는 weekend.
-        <div>
-          <button class="file-btn" id="pickFile">CSV 파일 고르기</button>
-          <button class="ghost-btn" id="resetBtn">추정값으로 되돌리기</button>
-          <input type="file" id="csvUpload" accept=".csv" hidden>
-        </div>
-        <div class="status" id="uploadStatus"></div>
-      </div>
     </section>
 
   </main>
@@ -1930,8 +1921,11 @@ function render(){
   if(liveMode) selectedHour = now.getHours();
   $('hourSlider').value = selectedHour;
   $('scrubHourLabel').textContent = hourLabel(selectedHour);
-  $('liveBtn').classList.toggle('on', liveMode);
-  $('liveText').textContent = liveMode ? '지금 시각' : hourLabel(selectedHour) + ' 보는 중';
+  const todayDow = now.getDay();
+  /* 초록 = 지금 시각을 보고 있다는 표시 (그대로 유지) */
+  $('liveBtn').classList.toggle('on', liveMode && selectedDow === todayDow);
+  const rd = refDate();
+  $('liveText').textContent = `${rd.getDate()}일 ${DOW_KR[selectedDow]}요일`;
 
   const realHour = now.getHours();
   const selPoi = POIS.find(p => p.id === selectedPoiId);
@@ -2018,30 +2012,21 @@ function render(){
   updateBoard();
 }
 
-/* 오늘 하루 중 가장 붐비는 시간 · 가장 한산한 시간 */
+/* 오늘 하루 중 가장 붐비는 시간 */
 function buildFlow(poi){
   const box = $('flowCard'); if(!box) return;
   $('flowPoi').textContent = poi.short;
-  let hi = 0, lo = 0;
+  let hi = 0;
   for(let h = 1; h < 24; h++){
     if(congestionFor(poi, h) > congestionFor(poi, hi)) hi = h;
-    if(congestionFor(poi, h) < congestionFor(poi, lo)) lo = h;
   }
-  /* 한산한 시간은 새벽을 빼고 활동 시간대(07~22시)에서 찾습니다 */
-  let calm = 7;
-  for(let h = 7; h <= 22; h++) if(congestionFor(poi, h) < congestionFor(poi, calm)) calm = h;
-  const hiL = levelFor(congestionFor(poi, hi));
-  box.className = 'card flow';
+  const lv = levelFor(congestionFor(poi, hi));
+  box.className = 'card flow one';
   box.innerHTML = `
     <div>
-      <div class="fk"><i style="background:${hiL.color}"></i>가장 붐빌 때</div>
+      <div class="fk"><i style="background:${lv.color}"></i>가장 붐빌 때</div>
       <div class="fv">${hourLabel(hi)}</div>
-      <div class="fs">${fmt(peopleFor(poi, hi))}명/시간 · ${congestionFor(poi, hi)}%</div>
-    </div>
-    <div>
-      <div class="fk"><i style="background:var(--safe)"></i>가기 좋은 때</div>
-      <div class="fv">${hourLabel(calm)}</div>
-      <div class="fs">${fmt(peopleFor(poi, calm))}명/시간 · ${congestionFor(poi, calm)}%</div>
+      <div class="fs">${fmt(peopleFor(poi, hi))}명/시간 · ${lv.label}</div>
     </div>`;
 }
 
@@ -2087,7 +2072,10 @@ function fireNotification(poi, pct){
 $('dayToggle').addEventListener('click', e => {
   const btn = e.target.closest('button'); if(!btn) return;
   setDow(Number(btn.dataset.dow));
-  if(selectedDow !== new Date().getDay()) liveMode = false;
+  /* 오늘을 다시 누르면 지금 시각으로 돌아옵니다 */
+  const isToday = selectedDow === new Date().getDay();
+  liveMode = isToday;
+  if(isToday){ autoMode = true; playing = false; clearInterval(playTimer); $('playBtn').textContent = '▶'; }
   render();
 });
 
@@ -2150,61 +2138,6 @@ $('playBtn').addEventListener('click', () => {
   render();
 });
 
-$('pickFile').addEventListener('click', () => $('csvUpload').click());
-$('csvUpload').addEventListener('change', e => {
-  const file = e.target.files[0]; if(!file) return;
-  const reader = new FileReader();
-  reader.onload = evt => {
-    const status = $('uploadStatus');
-    try{
-      const lines = evt.target.result.trim().split('\n').filter(Boolean);
-      const start = lines[0].toLowerCase().includes('poi') ? 1 : 0;
-      const buckets = {};
-      POIS.forEach(p => { buckets[p.id] = {weekday:new Array(24).fill(null), weekend:new Array(24).fill(null)}; });
-      for(let i = start; i < lines.length; i++){
-        const [poiId, h, type, pop] = lines[i].split(',').map(s => s.trim());
-        if(!buckets[poiId]) continue;
-        const hh = Number(h), pp = Number(pop);
-        if(hh < 0 || hh > 23 || isNaN(pp)) continue;
-        buckets[poiId][type === 'weekend' ? 'weekend' : 'weekday'][hh] = pp;
-      }
-      let changed = 0;
-      Object.keys(buckets).forEach(poiId => {
-        ['weekday','weekend'].forEach(key => {
-          if(buckets[poiId][key].every(v => v !== null)){
-            POIS.find(p => p.id === poiId)[key] = buckets[poiId][key];
-            /* 실측 합계를 일 기준값으로 함께 반영 */
-            if(key === 'weekday'){
-              BASELINE[poiId].daily = buckets[poiId][key].reduce((a,b) => a + b, 0);
-              BASELINE[poiId].measured = true;
-              BASELINE[poiId].src = '업로드한 실측 CSV';
-            }
-            changed++;
-          }
-        });
-      });
-      if(changed === 0) throw new Error('24시간이 모두 채워진 지점이 없어요. 형식을 확인해 주세요.');
-      status.textContent = `${changed}개 지점·요일을 실측값으로 바꿨어요.`;
-      status.className = 'status ok';
-      render();
-    }catch(err){
-      status.textContent = '불러오지 못했어요 — ' + err.message;
-      status.className = 'status err';
-    }
-  };
-  reader.readAsText(file);
-});
-
-$('resetBtn').addEventListener('click', () => {
-  POIS = JSON.parse(JSON.stringify(POIS_BASE));
-  rebuildBaseline();
-  $('uploadStatus').textContent = '추정값으로 되돌렸어요.';
-  $('uploadStatus').className = 'status ok';
-  $('csvUpload').value = '';
-  render();
-});
-
-runAutoAnalysis();
 /* ══════ 앱 사용감 (UX) ══════ */
 
 /* 토스트 — alert 대신 */
