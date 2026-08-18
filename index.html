@@ -165,7 +165,7 @@ if(typeof L === 'undefined'){
   /* ── 지도 ── */
   .map-card{padding:10px 10px 12px;}
   .map-frame{border-radius:var(--r-md);overflow:hidden;background:#E4E9E6;position:relative;}
-  #leafmap{width:100%;height:290px;z-index:1;}
+  #leafmap{width:100%;height:360px;z-index:1;}
   .leaflet-container{font-family:var(--kr);background:#E4E9E6;}
   .leaflet-container a{color:var(--road);}
   .leaflet-control-attribution{font-size:9.5px;background:rgba(255,255,255,.8);}
@@ -1658,7 +1658,15 @@ function buildWxStrip(){
 let leafMap = null;
 const poiMarkers = {};
 
-/* 하양읍이 화면에 꽉 차게 보여줄 범위 */
+/* 세 지점이 화면에 꽉 차게 — 지도를 열면 이 범위로 맞춥니다 */
+const POI_BOUNDS = (() => {
+  const lat = POIS.map(p => p.lat), lng = POIS.map(p => p.lng);
+  const pl = 0.0016, pn = 0.0022;   /* 마커·라벨이 잘리지 않을 만큼의 여백 */
+  return [[Math.min(...lat) - pl, Math.min(...lng) - pn],
+          [Math.max(...lat) + pl, Math.max(...lng) + pn]];
+})();
+
+/* 하양읍 전체 범위 — 축소했을 때의 기준 */
 const HAYANG_BOUNDS = [[35.8830, 128.7620], [35.9480, 128.8680]];
 /* 드래그로 벗어날 수 있는 한계 — 화면보다 넉넉해야 지도가 잠기지 않습니다 */
 const PAN_BOUNDS    = [[35.8580, 128.7250], [35.9730, 128.9050]];
@@ -1683,8 +1691,8 @@ function initSvgMap(){
   /* 지점들 주변으로 여유를 준 뒤, 화면 비율에 맞게 넓은 쪽을 늘립니다 */
   const cLat = (N + S) / 2, cLng = (E + W) / 2;
   const kx = Math.cos(cLat * Math.PI / 180);          /* 위도에 따른 경도 축소 */
-  let hLat = Math.max((N - S) / 2, 0.004) * 1.45;
-  let hLng = Math.max((E - W) / 2, 0.004) * 1.45;
+  let hLat = Math.max((N - S) / 2, 0.003) * 1.18;
+  let hLng = Math.max((E - W) / 2, 0.003) * 1.18;
   const wantRatio = (VW / VH);                        /* 가로:세로 */
   const curRatio = (hLng * kx) / hLat;
   if(curRatio < wantRatio) hLng = hLat * wantRatio / kx;
@@ -1745,7 +1753,7 @@ function initMap(){
     minZoom:12, maxZoom:18,
     maxBounds: PAN_BOUNDS,
     maxBoundsViscosity: 0.85
-  }).fitBounds(HAYANG_BOUNDS, {padding:[6,6], animate:false});
+  }).fitBounds(POI_BOUNDS, {padding:[26,26], animate:false});
 
   const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
     maxZoom: 19,
@@ -1796,7 +1804,7 @@ function refreshMap(delay, tries){
       return;
     }
     leafMap.invalidateSize(true);
-    leafMap.fitBounds(HAYANG_BOUNDS, {padding:[6,6], animate:false});
+    leafMap.fitBounds(POI_BOUNDS, {padding:[26,26], animate:false});
   }, delay);
 }
 
