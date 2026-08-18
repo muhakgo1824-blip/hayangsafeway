@@ -1,0 +1,2360 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#F0F3F9">
+<title>하양 안전알림 · 유동인구 예측 신호판</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&display=swap" rel="stylesheet">
+<!-- ▼ OpenStreetMap 지도 (Leaflet) — API 키 불필요 -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css">
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script>
+/* unpkg가 막히면 cdnjs에서 다시 시도합니다 */
+if(typeof L === 'undefined'){
+  document.write('<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"><\/script>');
+}
+</script>
+<style>
+  :root{
+    /* 도로 표지·신호등에서 가져온 색 */
+    --panel:#0D1216; --panel-2:#151D23; --panel-3:#1F2A32;
+    --paper:#EDF0EE; --card:#FFFFFF;
+    --ink:#101619; --ink-2:#586268; --ink-3:#8E9BA2;
+    --line:#E2E7E4; --line-2:#EDF0EE;
+    --road:#17578F; --road-soft:#E6EEF6;
+    --safe:#00A05A;  --safe-soft:#E0F3EA;  --safe-ink:#007441;
+    --watch:#E8AE00; --watch-soft:#FBF2D9; --watch-ink:#8A6800;
+    --care:#F07A13;  --care-soft:#FDEDDF;  --care-ink:#A85207;
+    --risk:#E03427;  --risk-soft:#FBE5E3;  --risk-ink:#A5241A;
+
+    --kr:"Pretendard Variable","Pretendard",-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+
+    --r-lg:22px; --r-md:16px; --r-sm:11px;
+    --sh-1:0 1px 2px rgba(16,22,25,.05);
+    --sh-2:0 2px 4px rgba(16,22,25,.04), 0 10px 26px rgba(16,22,25,.07);
+    --sh-panel:0 4px 10px rgba(13,18,22,.18), 0 20px 44px rgba(13,18,22,.22);
+    --nav-h:64px;
+    --ease:cubic-bezier(.22,.72,.24,1);
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+  html{-webkit-text-size-adjust:100%;}
+  body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--kr);
+    font-size:15px;line-height:1.5;display:flex;justify-content:center;
+    font-feature-settings:"tnum" 0;overscroll-behavior-y:contain;}
+  button,input,select{font-family:inherit;color:inherit;}
+  button{cursor:pointer;}
+  :focus-visible{outline:2px solid var(--road);outline-offset:2px;border-radius:8px;}
+  .num{font-family:var(--mono);font-variant-numeric:tabular-nums;letter-spacing:-.02em;}
+
+  .app{width:100%;max-width:460px;min-height:100vh;background:var(--paper);
+    position:relative;display:flex;flex-direction:column;}
+
+  /* ── 상단 바 (스크롤하면 납작해짐) ── */
+  .appbar{position:sticky;top:0;z-index:40;
+    background:color-mix(in srgb, var(--paper) 88%, transparent);
+    backdrop-filter:saturate(1.6) blur(14px);-webkit-backdrop-filter:saturate(1.6) blur(14px);
+    padding:calc(12px + env(safe-area-inset-top)) 20px 11px;
+    display:flex;align-items:center;justify-content:space-between;gap:12px;
+    border-bottom:1px solid transparent;transition:border-color .2s, padding .22s var(--ease);}
+  .appbar.stuck{border-bottom-color:var(--line);padding-top:calc(8px + env(safe-area-inset-top));padding-bottom:8px;}
+  .appbar h1{font-size:17.5px;font-weight:700;margin:0;letter-spacing:-.035em;transition:font-size .22s var(--ease);}
+  .appbar.stuck h1{font-size:15.5px;}
+  .appbar .where{font-size:11.5px;color:var(--ink-3);margin-top:2px;letter-spacing:-.01em;
+    max-height:20px;overflow:hidden;transition:max-height .22s var(--ease), opacity .18s;}
+  .appbar.stuck .where{max-height:0;opacity:0;}
+  .live{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
+    background:var(--card);border:1px solid var(--line);color:var(--ink-2);
+    border-radius:999px;padding:6px 12px;transition:transform .12s var(--ease);}
+  .live:active{transform:scale(.95);}
+  .live.on{color:var(--safe-ink);border-color:#B6E3CC;background:var(--safe-soft);}
+  .live .beat{width:7px;height:7px;border-radius:50%;background:var(--ink-3);}
+  .live.on .beat{background:var(--safe);animation:beat 2s ease-in-out infinite;}
+  @keyframes beat{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.3;transform:scale(.6);}}
+
+  main{flex:1;padding:14px 18px calc(var(--nav-h) + 30px + env(safe-area-inset-bottom));}
+  .screen{display:none;}
+  .screen.on{display:block;animation:slidein .3s var(--ease) both;}
+  @keyframes slidein{from{opacity:0;transform:translate3d(0,10px,0);}to{opacity:1;transform:none;}}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-1);}
+  .sec-title{font-size:12px;font-weight:700;color:var(--ink-2);margin:26px 4px 9px;
+    display:flex;justify-content:space-between;align-items:center;gap:10px;
+    letter-spacing:.02em;text-transform:none;}
+  .sec-title small{font-weight:600;color:var(--ink-3);font-size:11px;}
+  .screen > .sec-title:first-child{margin-top:2px;}
+
+  /* ══ 신호판 (이 앱의 얼굴) ══ */
+  .panel{position:relative;border-radius:var(--r-lg);overflow:hidden;
+    background:
+      radial-gradient(120% 90% at 88% 0%, rgba(255,255,255,.07), transparent 60%),
+      linear-gradient(168deg, var(--panel-2), var(--panel) 62%);
+    box-shadow:var(--sh-panel);color:#E7EDF0;padding:18px 18px 15px;}
+  /* 도트매트릭스 질감 */
+  .panel::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+    background-image:radial-gradient(rgba(255,255,255,.055) 1px, transparent 1px);
+    background-size:4px 4px;}
+  .panel-top{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    font-size:11px;letter-spacing:.14em;color:#75858F;font-weight:600;position:relative;}
+  .panel-body{display:flex;gap:16px;align-items:center;margin-top:13px;position:relative;}
+
+  .lamps{background:#05090C;border-radius:15px;padding:9px 8px;display:flex;flex-direction:column;gap:7px;
+    flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 2px 6px rgba(0,0,0,.4);}
+  .lamp{width:21px;height:21px;border-radius:50%;background:#1B252C;
+    box-shadow:inset 0 1px 2px rgba(0,0,0,.7);
+    transition:background .4s var(--ease), box-shadow .4s var(--ease), transform .4s var(--ease);}
+  .lamp.lit.risk{background:var(--risk);box-shadow:0 0 0 3px rgba(224,52,39,.18),0 0 20px 2px rgba(224,52,39,.8);transform:scale(1.06);}
+  .lamp.lit.care{background:var(--care);box-shadow:0 0 0 3px rgba(240,122,19,.18),0 0 20px 2px rgba(240,122,19,.8);transform:scale(1.06);}
+  .lamp.lit.watch{background:var(--watch);box-shadow:0 0 0 3px rgba(232,174,0,.18),0 0 20px 2px rgba(232,174,0,.8);transform:scale(1.06);}
+  .lamp.lit.safe{background:var(--safe);box-shadow:0 0 0 3px rgba(0,160,90,.18),0 0 20px 2px rgba(0,160,90,.75);transform:scale(1.06);}
+
+  .panel-copy{min-width:0;flex:1;}
+  .hero-place{font-size:12px;color:#8A99A2;font-weight:600;letter-spacing:-.01em;
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+  .hero-line{font-size:30px;font-weight:800;letter-spacing:-.045em;margin:2px 0 6px;line-height:1.06;color:#fff;}
+  .hero-num{font-family:var(--mono);font-variant-numeric:tabular-nums;
+    font-size:14px;font-weight:600;color:#C6D2D8;letter-spacing:-.02em;}
+  .hero-sub{font-size:11.5px;color:#7E8D96;margin-top:4px;line-height:1.5;}
+  .hero-sub b{font-family:var(--mono);color:#C6D2D8;font-weight:600;}
+
+  .cause{display:flex;gap:5px;flex-wrap:wrap;margin-top:11px;position:relative;}
+  .cause span{font-size:10.5px;font-weight:600;background:rgba(255,255,255,.08);
+    color:#B9C6CD;border-radius:999px;padding:4px 9px;letter-spacing:-.01em;}
+
+  /* 판 안의 24시간 미니그래프 */
+  .spark{margin-top:14px;position:relative;}
+  .spark svg{display:block;width:100%;height:38px;}
+  .spark-ax{display:flex;justify-content:space-between;font-family:var(--mono);
+    font-size:9px;color:#5E6D76;margin-top:3px;letter-spacing:0;}
+
+  /* ── 경보 배너 ── */
+  .warn{display:none;gap:9px;align-items:center;margin-bottom:12px;padding:12px 15px;
+    border-radius:var(--r-md);font-size:13px;font-weight:600;line-height:1.45;letter-spacing:-.015em;
+    animation:slidein .3s var(--ease) both;}
+  .warn.show{display:flex;}
+  .warn .beat{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;animation:beat 1.5s infinite;}
+
+  /* ── 지점 목록 ── */
+  .places{overflow:hidden;}
+  .place{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center;
+    padding:13px 15px;border:0;border-bottom:1px solid var(--line-2);background:none;width:100%;
+    text-align:left;transition:background .16s, transform .12s var(--ease);}
+  .place:last-child{border-bottom:none;}
+  .place:active{background:#F5F7F6;transform:scale(.988);}
+  .place.sel{background:#F6F8F7;}
+  .place .rankno{width:21px;height:21px;border-radius:7px;background:var(--paper);color:var(--ink-3);
+    font-family:var(--mono);font-size:11px;font-weight:700;display:grid;place-items:center;}
+  .place .nm{font-weight:600;letter-spacing:-.03em;font-size:14.5px;}
+  .place .ppl{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:3px;display:block;letter-spacing:-.02em;}
+  .place .meter{height:5px;border-radius:99px;background:var(--paper);margin-top:7px;overflow:hidden;}
+  .place .meter i{display:block;height:100%;border-radius:99px;transition:width .5s var(--ease);}
+  .chip{font-size:11px;font-weight:700;padding:5px 9px;border-radius:8px;white-space:nowrap;
+    display:flex;align-items:center;gap:5px;letter-spacing:-.01em;}
+  .chip .pctnum{font-family:var(--mono);opacity:.72;font-weight:600;}
+  .chip.safe{background:var(--safe-soft);color:var(--safe-ink);}
+  .chip.watch{background:var(--watch-soft);color:var(--watch-ink);}
+  .chip.care{background:var(--care-soft);color:var(--care-ink);}
+  .chip.risk{background:var(--risk-soft);color:var(--risk-ink);}
+
+  /* ── 지도 ── */
+  .map-card{padding:10px 10px 12px;}
+  .map-frame{border-radius:var(--r-md);overflow:hidden;background:#E4E9E6;position:relative;}
+  #leafmap{width:100%;height:290px;z-index:1;}
+  .leaflet-container{font-family:var(--kr);background:#E4E9E6;}
+  .leaflet-container a{color:var(--road);}
+  .leaflet-control-attribution{font-size:9.5px;background:rgba(255,255,255,.8);}
+  .leaflet-bar a{border-radius:8px !important;}
+  .poi-tip{background:rgba(255,255,255,.95);border:1px solid var(--line);border-radius:9px;
+    box-shadow:0 2px 8px rgba(16,22,25,.16);padding:3px 8px;font-size:10.5px;font-weight:700;white-space:nowrap;}
+  .poi-tip::before{display:none;}
+  .poi-tip .tip-nm{font-family:var(--kr);color:var(--ink-2);font-weight:600;margin-right:4px;}
+  .poi-tip .tip-num{font-family:var(--mono);letter-spacing:-.02em;}
+  #tileWarn{display:none;position:absolute;left:10px;right:10px;bottom:10px;z-index:5;
+    background:var(--risk-soft);color:var(--risk-ink);border-radius:10px;padding:9px 12px;
+    font-size:11.5px;font-weight:600;line-height:1.5;}
+  .legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:11px;padding:0 5px;font-size:11px;color:var(--ink-2);}
+  .legend span{display:flex;align-items:center;gap:5px;font-weight:600;}
+  .sw{width:8px;height:8px;border-radius:50%;}
+
+  /* ── 시간 스크러버 ── */
+  .timebar{padding:13px 15px;display:flex;align-items:center;gap:13px;margin-top:11px;}
+  .play{width:42px;height:42px;border-radius:14px;border:none;background:var(--ink);color:#fff;
+    flex-shrink:0;font-size:13px;display:grid;place-items:center;
+    box-shadow:0 3px 10px rgba(16,22,25,.24);transition:transform .12s var(--ease);}
+  .play:active{transform:scale(.92);}
+  .timebar .col{flex:1;min-width:0;}
+  .timebar label{font-size:11px;color:var(--ink-3);display:block;margin-bottom:1px;font-weight:600;}
+  .timebar .hh{font-family:var(--mono);font-size:15px;font-weight:700;letter-spacing:-.03em;}
+  input[type=range]{width:100%;accent-color:var(--road);margin-top:4px;}
+
+  /* ── 세그먼트 / 칩 ── */
+  .seg{display:flex;background:#E4E8E5;border-radius:13px;padding:3px;gap:3px;margin-bottom:13px;}
+  .seg button{flex:1;border:none;background:transparent;color:var(--ink-2);font-size:12.5px;
+    font-weight:600;padding:9px 0;border-radius:10px;letter-spacing:-.02em;
+    transition:background .18s var(--ease), color .18s, box-shadow .18s;}
+  .seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(16,22,25,.13);}
+  .seg.mini button{font-size:12px;padding:8px 0;}
+
+  .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:13px;}
+  .dow button{border:1px solid var(--line);background:var(--card);color:var(--ink-2);
+    border-radius:12px;padding:9px 0 8px;font-size:12.5px;font-weight:700;letter-spacing:-.02em;
+    display:flex;flex-direction:column;align-items:center;gap:2px;
+    transition:transform .12s var(--ease), background .18s, color .18s, border-color .18s;}
+  .dow button:active{transform:scale(.93);}
+  .dow button .dd{font-family:var(--mono);font-size:9.5px;font-weight:600;color:var(--ink-3);letter-spacing:-.04em;}
+  .dow button.sat{color:#2A5C9A;} .dow button.sun{color:var(--risk-ink);}
+  .dow button.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .dow button.on .dd{color:rgba(255,255,255,.6);}
+  .dow button.today{border-color:var(--road);}
+  .pills{display:flex;gap:7px;overflow-x:auto;padding-bottom:3px;margin-bottom:12px;scrollbar-width:none;}
+  .pills::-webkit-scrollbar{display:none;}
+  .pill{border:1px solid var(--line);background:var(--card);color:var(--ink-2);border-radius:999px;
+    padding:8px 14px;font-size:12.5px;font-weight:600;white-space:nowrap;letter-spacing:-.02em;
+    transition:transform .12s var(--ease);}
+  .pill:active{transform:scale(.95);}
+  .pill.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+
+  /* ── 시간대 표 ── */
+  .hours{overflow:hidden;}
+  .hrow{display:grid;grid-template-columns:38px 1fr 40px 46px;gap:9px;align-items:center;
+    padding:6px 14px;border-bottom:1px solid var(--line-2);}
+  .hrow:last-child{border-bottom:none;}
+  .hrow.now{background:#F6F8F7;}
+  .hrow .hh{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:-.03em;}
+  .hrow.now .hh{color:var(--ink);font-weight:700;}
+  .hrow .track{height:9px;background:var(--paper);border-radius:99px;overflow:hidden;}
+  .hrow .track i{display:block;height:100%;border-radius:99px;transition:width .45s var(--ease);}
+  .hrow .val,.hrow .ppl{font-family:var(--mono);font-size:11px;color:var(--ink-2);text-align:right;letter-spacing:-.03em;}
+  .hrow .ppl{color:var(--ink-3);}
+
+  /* ── 자동 분석 ── */
+  .auto-row{display:grid;grid-template-columns:24px 1fr auto;gap:11px;align-items:center;
+    padding:13px 15px;border-bottom:1px solid var(--line-2);}
+  .auto-row:last-child{border-bottom:none;}
+  .auto-row .ic{font-size:16px;text-align:center;line-height:1;}
+  .auto-row .lb{font-size:13.5px;font-weight:600;letter-spacing:-.025em;}
+  .auto-row .ds{font-size:11px;color:var(--ink-3);margin-top:3px;line-height:1.5;letter-spacing:-.01em;}
+  .auto-row .vv{font-size:11px;font-weight:700;padding:5px 9px;border-radius:8px;white-space:nowrap;
+    background:var(--paper);color:var(--ink-2);}
+  .auto-row .vv.hit{background:var(--road-soft);color:var(--road);}
+
+  /* ── 설정 행 ── */
+  .set-row{display:flex;align-items:center;justify-content:space-between;gap:14px;
+    padding:14px 15px;border-bottom:1px solid var(--line-2);}
+  .set-row:last-child{border-bottom:none;}
+  .set-row .lb{font-size:13.5px;font-weight:600;letter-spacing:-.025em;}
+  .set-row .ds{font-size:11px;color:var(--ink-3);margin-top:3px;line-height:1.45;}
+  .switch{width:46px;height:28px;border-radius:99px;background:#D3DAD6;border:none;position:relative;
+    flex-shrink:0;transition:background .22s var(--ease);}
+  .switch i{position:absolute;top:3px;left:3px;width:22px;height:22px;border-radius:50%;background:#fff;
+    box-shadow:0 1px 3px rgba(0,0,0,.22);transition:transform .22s var(--ease);}
+  .switch.on{background:var(--safe);}
+  .switch.on i{transform:translateX(18px);}
+  .factor{padding:15px;border-bottom:1px solid var(--line-2);}
+  .factor:last-child{border-bottom:none;}
+  .factor .lb{font-size:13.5px;font-weight:600;margin-bottom:2px;letter-spacing:-.025em;}
+  .factor .ds{font-size:11px;color:var(--ink-3);margin-bottom:10px;line-height:1.5;}
+
+  /* ── 기준값 구성 ── */
+  .flow{display:grid;grid-template-columns:1fr 1fr;}
+  .flow > div{padding:14px 15px;}
+  .flow > div:first-child{border-right:1px solid var(--line-2);}
+  .flow .fk{font-size:11px;color:var(--ink-3);font-weight:600;display:flex;align-items:center;gap:5px;}
+  .flow .fk i{width:6px;height:6px;border-radius:50%;}
+  .flow .fv{font-size:19px;font-weight:800;letter-spacing:-.04em;margin-top:5px;}
+  .flow .fs{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:3px;letter-spacing:-.03em;}
+  .base-block{padding:14px 15px;border-bottom:1px solid var(--line-2);}
+  .base-block:last-child{border-bottom:none;}
+  .base-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;}
+  .base-head .nm{font-size:13.5px;font-weight:600;letter-spacing:-.03em;}
+  .base-head .tot{font-family:var(--mono);font-size:16px;font-weight:700;letter-spacing:-.04em;}
+  .base-head .u{font-family:var(--kr);font-size:10.5px;color:var(--ink-3);margin-left:3px;font-weight:600;}
+  .comp{display:grid;grid-template-columns:3px 1fr auto;grid-template-areas:"b k v" "b s s";
+    gap:2px 10px;align-items:center;padding:6px 0;}
+  .cbar{grid-area:b;align-self:stretch;background:var(--paper);border-radius:99px;
+    overflow:hidden;position:relative;min-height:26px;}
+  .cbar i{position:absolute;top:0;left:0;width:100%;background:var(--road);border-radius:99px;}
+  .comp .ck{grid-area:k;font-size:12.5px;font-weight:600;color:var(--ink-2);letter-spacing:-.02em;}
+  .comp .cv{grid-area:v;font-family:var(--mono);font-size:12.5px;font-weight:700;letter-spacing:-.03em;}
+  .comp .cs{grid-area:s;font-size:10px;color:var(--ink-3);line-height:1.45;}
+  .comp.school .cbar i{background:var(--care);}
+  .comp .tag{font-size:9px;font-weight:700;background:var(--care-soft);color:var(--care-ink);
+    border-radius:5px;padding:1px 5px;margin-left:5px;vertical-align:1px;letter-spacing:0;}
+
+  /* ── 날씨 ── */
+  .title-right{display:flex;align-items:center;gap:8px;}
+  .wx-refresh{background:var(--card);border:1px solid var(--line);color:var(--ink-2);
+    border-radius:999px;width:25px;height:25px;font-size:12px;line-height:1;padding:0;
+    display:grid;place-items:center;flex-shrink:0;transition:transform .35s var(--ease);}
+  .wx-refresh:active{transform:rotate(180deg) scale(.9);}
+  .wx-refresh.busy{opacity:.45;pointer-events:none;animation:spin .9s linear infinite;}
+  @keyframes spin{to{transform:rotate(360deg);}}
+  .wx-live{display:inline-flex;align-items:center;gap:5px;color:var(--safe-ink);font-weight:700;}
+  .wx-live i{width:5px;height:5px;border-radius:50%;background:var(--safe);animation:beat 2s ease-in-out infinite;}
+  .wx-now{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:16px 15px 6px;}
+  .wx-now-ic{font-size:32px;line-height:1;}
+  .wx-now-t{font-family:var(--mono);font-size:31px;font-weight:700;letter-spacing:-.05em;line-height:1;}
+  .wx-now-t .deg{font-size:14px;color:var(--ink-3);margin-left:2px;letter-spacing:0;}
+  .wx-now-sub{font-size:11.5px;color:var(--ink-3);margin-top:5px;line-height:1.45;letter-spacing:-.01em;}
+  .wx-now-meta{display:flex;flex-direction:column;gap:4px;text-align:right;}
+  .wx-now-meta .k{font-size:10px;color:var(--ink-3);margin-right:7px;font-weight:600;}
+  .wx-now-meta .v{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--ink-2);letter-spacing:-.02em;}
+  .wx-strip{display:flex;gap:6px;overflow-x:auto;padding:12px 15px 6px;scrollbar-width:none;
+    scroll-snap-type:x proximity;}
+  .wx-strip::-webkit-scrollbar{display:none;}
+  .wx-day{flex:0 0 auto;width:58px;border:1px solid var(--line);background:var(--card);border-radius:13px;
+    padding:8px 4px 7px;text-align:center;scroll-snap-align:center;
+    transition:border-color .18s, background .18s, transform .12s var(--ease);}
+  .wx-day:active{transform:scale(.94);}
+  .wx-day.past{opacity:.55;}
+  .wx-day.today{border-color:var(--road);background:var(--road-soft);opacity:1;}
+  .wx-day.sel{border-color:var(--ink);border-width:2px;padding:7px 3px 6px;}
+  .wx-day .d{font-size:10px;color:var(--ink-3);font-weight:700;}
+  .wx-day .ic{font-size:18px;line-height:1.45;}
+  .wx-day .t{font-family:var(--mono);font-size:10.5px;font-weight:700;letter-spacing:-.04em;}
+  .wx-day .t i{color:var(--ink-3);font-style:normal;font-weight:500;}
+  .wx-day .mm{font-family:var(--mono);font-size:9px;color:var(--road);height:11px;letter-spacing:-.04em;}
+  .wx-tagline{font-size:9.5px;font-weight:700;border-radius:5px;padding:1px 0;margin-top:3px;}
+  .wx-tagline.clear{background:var(--safe-soft);color:var(--safe-ink);}
+  .wx-tagline.rain{background:var(--road-soft);color:var(--road);}
+  .wx-tagline.heat{background:var(--care-soft);color:var(--care-ink);}
+  .wx-tagline.cold{background:#E9EEF3;color:#3B5A76;}
+  .wx-note{font-size:11px;color:var(--risk-ink);line-height:1.55;padding:6px 16px 14px;}
+
+  /* ── 문안 · 안내 ── */
+  .prose{padding:16px;font-size:12.5px;color:var(--ink-2);line-height:1.75;}
+  .prose b{color:var(--ink);}
+  .prose code{background:var(--paper);padding:2px 6px;border-radius:6px;font-family:var(--mono);
+    font-size:11.5px;color:var(--road);}
+  .prose ul{margin:8px 0 0;padding-left:17px;}
+  .prose li{margin-bottom:4px;}
+  .msg-preview{margin:0 15px 15px;background:#F8F9F6;border:1px solid var(--line);border-radius:var(--r-md);
+    padding:13px 15px;font-size:12.5px;line-height:1.75;white-space:pre-wrap;color:#3B443F;font-family:var(--mono);
+    letter-spacing:-.02em;}
+  .msg-head{display:flex;justify-content:space-between;align-items:center;padding:15px 15px 9px;}
+  .msg-head .lb{font-size:13.5px;font-weight:700;letter-spacing:-.03em;}
+  .copy-btn{background:var(--ink);color:#fff;border:none;border-radius:10px;padding:8px 13px;
+    font-size:12px;font-weight:600;transition:transform .12s var(--ease);}
+  .copy-btn:active{transform:scale(.93);}
+  .file-btn{display:inline-block;margin-top:11px;background:var(--ink);color:#fff;border:none;
+    border-radius:12px;padding:11px 16px;font-size:13px;font-weight:600;}
+  .ghost-btn{background:none;border:1px solid var(--line);color:var(--ink-2);border-radius:12px;
+    padding:11px 14px;font-size:12.5px;font-weight:600;margin-left:7px;}
+  .status{font-size:12px;margin-top:9px;font-weight:600;padding:0 2px;}
+  .status.ok{color:var(--safe-ink);} .status.err{color:var(--risk-ink);}
+  .disclose{width:100%;margin-top:24px;background:none;border:1px dashed var(--line);color:var(--ink-3);
+    border-radius:var(--r-md);padding:13px;font-size:12.5px;font-weight:600;
+    transition:background .16s, color .16s;}
+  .disclose:active{background:var(--card);color:var(--ink-2);}
+  .linkbtn{background:none;border:none;color:var(--road);font-size:11.5px;font-weight:700;padding:0;
+    text-decoration:underline;}
+
+  /* ── 바텀시트 ── */
+  .sheet-back{position:fixed;inset:0;background:rgba(13,18,22,.42);z-index:70;opacity:0;
+    pointer-events:none;transition:opacity .28s var(--ease);
+    -webkit-backdrop-filter:blur(2px);backdrop-filter:blur(2px);}
+  .sheet-back.on{opacity:1;pointer-events:auto;}
+  .sheet{position:fixed;left:50%;bottom:0;transform:translate(-50%,100%);width:100%;max-width:460px;
+    background:var(--paper);border-radius:24px 24px 0 0;z-index:71;max-height:86vh;display:flex;
+    flex-direction:column;transition:transform .32s var(--ease);
+    box-shadow:0 -8px 40px rgba(13,18,22,.24);}
+  .sheet.on{transform:translate(-50%,0);}
+  .sheet-grab{padding:9px 0 3px;display:flex;justify-content:center;flex-shrink:0;}
+  .sheet-grab i{width:38px;height:4px;border-radius:99px;background:#CBD3CE;}
+  .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:6px 18px 12px;flex-shrink:0;}
+  .sheet-head .t{font-size:16px;font-weight:700;letter-spacing:-.035em;}
+  .sheet-x{background:var(--card);border:1px solid var(--line);border-radius:999px;width:30px;height:30px;
+    display:grid;place-items:center;font-size:14px;color:var(--ink-2);}
+  .sheet-body{overflow-y:auto;padding:0 18px calc(22px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;}
+
+  /* ── 토스트 ── */
+  .toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 18px + env(safe-area-inset-bottom));
+    transform:translate(-50%,14px);background:var(--ink);color:#fff;font-size:13px;font-weight:600;
+    padding:11px 18px;border-radius:999px;z-index:90;opacity:0;pointer-events:none;
+    box-shadow:0 6px 22px rgba(16,22,25,.3);transition:opacity .24s var(--ease), transform .24s var(--ease);
+    letter-spacing:-.02em;max-width:90vw;text-align:center;}
+  .toast.on{opacity:1;transform:translate(-50%,0);}
+
+  /* ── 스켈레톤 ── */
+  .sk{background:linear-gradient(100deg,#E9EDEA 30%,#F3F6F3 50%,#E9EDEA 70%);
+    background-size:220% 100%;animation:shimmer 1.3s linear infinite;border-radius:8px;color:transparent !important;}
+  @keyframes shimmer{to{background-position:-220% 0;}}
+
+  /* ── 당겨서 새로고침 ── */
+  .ptr{position:absolute;top:0;left:0;right:0;display:flex;justify-content:center;
+    pointer-events:none;z-index:35;}
+  .ptr i{margin-top:6px;width:26px;height:26px;border-radius:50%;background:var(--card);
+    border:1px solid var(--line);box-shadow:var(--sh-1);display:grid;place-items:center;
+    font-size:12px;color:var(--ink-2);opacity:0;transform:scale(.7);transition:opacity .15s;}
+
+  /* ── 전광판 모드 ── */
+  .board{position:fixed;inset:0;background:#05090C;color:#fff;z-index:80;display:none;
+    flex-direction:column;justify-content:center;padding:8vh 7vw;}
+  .board::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
+    background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);background-size:5px 5px;}
+  .board.on{display:flex;}
+  .board .b-top{font-size:13px;letter-spacing:.28em;color:#657580;font-weight:700;position:relative;}
+  .board .b-level{font-size:clamp(52px,16vw,120px);font-weight:800;letter-spacing:-.055em;line-height:1;
+    margin:16px 0 6px;display:flex;align-items:center;gap:22px;position:relative;}
+  .board .b-dot{width:.5em;height:.5em;border-radius:50%;box-shadow:0 0 50px currentColor;}
+  .board .b-line{font-size:clamp(16px,4.4vw,25px);font-weight:600;line-height:1.5;margin-top:18px;
+    color:#D5DEE3;position:relative;letter-spacing:-.03em;}
+  .board .b-sub{font-size:13px;color:#657580;margin-top:20px;line-height:1.7;position:relative;}
+  .board .b-close{position:absolute;top:calc(20px + env(safe-area-inset-top));right:20px;background:#18222A;
+    border:none;color:#8A99A2;border-radius:12px;padding:10px 15px;font-size:12.5px;font-weight:600;z-index:2;}
+
+  /* ── 하단 탭 ── */
+  .nav{position:fixed;bottom:0;width:100%;max-width:460px;height:calc(var(--nav-h) + env(safe-area-inset-bottom));
+    background:color-mix(in srgb, #fff 92%, transparent);
+    backdrop-filter:saturate(1.6) blur(16px);-webkit-backdrop-filter:saturate(1.6) blur(16px);
+    border-top:1px solid var(--line);display:flex;z-index:60;padding-bottom:env(safe-area-inset-bottom);}
+  .nav button{flex:1;border:none;background:none;color:var(--ink-3);display:flex;flex-direction:column;
+    align-items:center;justify-content:center;gap:4px;font-size:9.5px;font-weight:700;
+    position:relative;letter-spacing:-.01em;transition:color .2s;}
+  .nav button.on{color:var(--ink);}
+  .nav button::before{content:"";position:absolute;top:7px;width:4px;height:4px;border-radius:50%;
+    background:var(--road);opacity:0;transform:translateY(-3px);transition:opacity .22s var(--ease), transform .22s var(--ease);}
+  .nav button.on::before{opacity:1;transform:translateY(0);}
+  .nav svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;
+    stroke-linecap:round;stroke-linejoin:round;transition:transform .2s var(--ease);}
+  .nav button.on svg{transform:translateY(1px) scale(1.04);}
+  .nav button:active svg{transform:scale(.9);}
+
+  @media (prefers-reduced-motion:reduce){
+    *{animation-duration:.01ms !important;animation-iteration-count:1 !important;transition-duration:.01ms !important;}
+  }
+
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="appbar">
+    <div>
+      <h1>하양 안전알림</h1>
+      <div class="where">경산시 하양읍 · <span id="dayLabel">-</span> <span id="clockText">--:--</span></div>
+    </div>
+    <button class="live on" id="liveBtn"><span class="beat"></span><span id="liveText">지금 시각</span></button>
+  </header>
+
+  <main>
+
+    <!-- ══ 지금 ══ -->
+    <section class="screen on" id="screen-now">
+      <div class="warn" id="warnBox"><span class="beat"></span><span id="warnText"></span></div>
+
+      <div class="panel" id="signalPanel">
+        <div class="panel-top">
+          <span>하양읍 혼잡 신호판</span>
+          <span id="panelStamp">—</span>
+        </div>
+        <div class="panel-body">
+          <div class="lamps">
+            <div class="lamp" id="lamp-risk"></div>
+            <div class="lamp" id="lamp-care"></div>
+            <div class="lamp" id="lamp-watch"></div>
+            <div class="lamp" id="lamp-safe"></div>
+          </div>
+          <div class="panel-copy">
+            <div class="hero-place" id="heroPlace">하양역</div>
+            <div class="hero-line" id="heroLine">확인 중</div>
+            <div class="hero-num" id="heroPeople">계산 중</div>
+            <div class="hero-sub" id="heroSub">지금 상황을 읽고 있어요</div>
+          </div>
+        </div>
+        <div class="cause" id="heroCause"></div>
+        <div class="spark">
+          <svg id="heroSpark" viewBox="0 0 240 38" preserveAspectRatio="none" aria-hidden="true"></svg>
+          <div class="spark-ax"><span>00</span><span>06</span><span>12</span><span>18</span><span>24</span></div>
+        </div>
+      </div>
+
+      <div class="sec-title">오늘 흐름 <small id="flowPoi">하양역</small></div>
+      <div class="card" id="flowCard"></div>
+
+      <div class="sec-title" id="nowListTitle">지금 혼잡한 곳</div>
+      <div class="card places" id="placesNow"></div>
+    </section>
+
+    <!-- ══ 지도 ══ -->
+    <section class="screen" id="screen-map">
+      <div class="card map-card">
+        <div class="map-frame">
+          <div id="leafmap" role="application" aria-label="하양읍 세 지점 지도"></div>
+          <div id="tileWarn">지도 이미지를 불러오지 못했습니다. 인터넷 연결이나 네트워크 차단 설정을 확인해 주세요.</div>
+        </div>
+        <div class="legend">
+          <span><i class="sw" style="background:#00A05A"></i>안전</span>
+          <span><i class="sw" style="background:#E8AE00"></i>관심</span>
+          <span><i class="sw" style="background:#F07A13"></i>주의</span>
+          <span><i class="sw" style="background:#E03427"></i>위험</span>
+        </div>
+      </div>
+
+      <div class="card timebar">
+        <button class="play" id="playBtn" aria-label="하루 흐름 재생">▶</button>
+        <div class="col">
+          <label>보고 있는 시간</label>
+          <span class="hh" id="scrubHourLabel">12시</span>
+          <input type="range" id="hourSlider" min="0" max="23" step="1" value="12" aria-label="시간 선택">
+        </div>
+      </div>
+
+      <div class="sec-title">이 시간대 혼잡한 곳</div>
+      <div class="card places" id="placesMap"></div>
+    </section>
+
+    <!-- ══ 시간대 ══ -->
+    <section class="screen" id="screen-hours">
+      <div class="pills" id="poiPills"></div>
+      <div class="dow" id="dayToggle"></div>
+      <div class="card hours" id="hoursList"></div>
+    </section>
+
+    <!-- ══ 예측 조건 ══ -->
+    <section class="screen" id="screen-predict">
+      <div class="sec-title">하양읍 날씨
+        <span class="title-right">
+          <small id="wxStamp"></small>
+          <button class="wx-refresh" id="wxRefresh" aria-label="날씨 새로고침">↻</button>
+        </span>
+      </div>
+      <div class="card">
+        <div class="wx-now" id="wxNow">
+          <div class="wx-now-ic" id="wxNowIc">·</div>
+          <div class="wx-now-main">
+            <div class="wx-now-t"><span id="wxNowTemp" class="sk">--</span><span class="deg">°C</span></div>
+            <div class="wx-now-sub" id="wxNowSub">현재 날씨를 불러오는 중</div>
+          </div>
+          <div class="wx-now-meta">
+            <div><span class="k">습도</span><span class="v sk" id="wxNowHum">--%</span></div>
+            <div><span class="k">체감</span><span class="v sk" id="wxNowFeel">--°</span></div>
+            <div><span class="k">바람</span><span class="v sk" id="wxNowWind">--</span></div>
+          </div>
+        </div>
+        <div class="wx-strip" id="wxStrip"></div>
+        <div class="wx-note err" id="wxNote" hidden></div>
+      </div>
+
+      <div class="sec-title">오늘 자동 분석 <small id="autoStamp">—</small></div>
+      <div class="card" id="autoCard"></div>
+
+      <div class="sec-title">조건이 만든 차이</div>
+      <div class="card places" id="deltaList"></div>
+
+      <div class="sec-title">기준값 (일 유동인구)</div>
+      <div class="card" id="baseList"></div>
+
+      <button class="disclose" id="manualToggle">조건 직접 바꿔보기 (시연·검증용)</button>
+    </section>
+
+    <!-- ══ 전달·안내 ══ -->
+    <section class="screen" id="screen-info">
+      <div class="sec-title">주민에게 전달하기</div>
+      <div class="card">
+        <div class="msg-head"><span class="lb">카카오 알림톡 · 문자 문안</span><button class="copy-btn" id="copyMsg">복사</button></div>
+        <div class="msg-preview" id="msgPreview"></div>
+        <div class="set-row">
+          <div><div class="lb">전광판 모드</div><div class="ds">정류장·학내 화면에 띄우는 전체화면</div></div>
+          <button class="copy-btn" id="boardBtn">열기</button>
+        </div>
+        <div class="set-row">
+          <div><div class="lb">앱 푸시 알림</div><div class="ds">주의 단계 이상이 되면 알려드려요</div></div>
+          <button class="switch" id="notifSwitch" aria-label="알림 켜기"><i></i></button>
+        </div>
+      </div>
+
+      <div class="sec-title">실측 데이터 넣기</div>
+      <div class="card prose">
+        형식: <code>poi,hour,day_type,population</code><br>
+        poi는 station · market · university, hour는 0~23, day_type은 weekday 또는 weekend.
+        <div>
+          <button class="file-btn" id="pickFile">CSV 파일 고르기</button>
+          <button class="ghost-btn" id="resetBtn">추정값으로 되돌리기</button>
+          <input type="file" id="csvUpload" accept=".csv" hidden>
+        </div>
+        <div class="status" id="uploadStatus"></div>
+      </div>
+    </section>
+
+  </main>
+
+  <nav class="nav" id="tabbar">
+    <button data-tab="now" class="on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>지금</button>
+    <button data-tab="map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 7z"/><path d="M9 4v13M15 7v12.5"/></svg>지도</button>
+    <button data-tab="hours"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>요일 예상</button>
+    <button data-tab="predict"><svg viewBox="0 0 24 24"><path d="M3 17l5-6 4 3 5-8 4 5"/><path d="M3 21h18"/></svg>예측</button>
+    <button data-tab="info"><svg viewBox="0 0 24 24"><path d="M4 5h16v11H8l-4 3z"/><path d="M8 9h8M8 12.5h5"/></svg>전달</button>
+  </nav>
+</div>
+
+
+<div class="sheet-back" id="sheetBack"></div>
+<div class="sheet" id="manualSheet" role="dialog" aria-label="조건 직접 조정">
+  <div class="sheet-grab"><i></i></div>
+  <div class="sheet-head">
+    <span class="t">조건 직접 조정</span>
+    <button class="sheet-x" id="sheetClose" aria-label="닫기">✕</button>
+  </div>
+  <div class="sheet-body" id="manualBox">
+      <div class="card">
+        <div class="factor">
+          <div class="lb">날씨</div>
+          <div class="ds">실제 예보 대신 고른 날씨로 계산합니다</div>
+          <div class="seg mini" data-factor="weather">
+            <button data-v="clear" class="on">맑음</button><button data-v="rain">비</button>
+            <button data-v="heat">폭염</button><button data-v="cold">한파</button>
+          </div>
+        </div>
+        <div class="factor">
+          <div class="lb">학사일정</div>
+          <div class="ds">캠퍼스 인구에 가장 크게 작용합니다</div>
+          <div class="seg mini" data-factor="academic">
+            <button data-v="normal" class="on">학기중</button><button data-v="exam">시험</button>
+            <button data-v="festival">축제</button><button data-v="vacation">방학</button>
+          </div>
+        </div>
+        <div class="set-row">
+          <div><div class="lb">버스 집중</div><div class="ds">여러 노선이 몰려 도착하는 시간대</div></div>
+          <button class="switch" id="swBus" aria-label="버스 집중"><i></i></button>
+        </div>
+        <div class="set-row">
+          <div><div class="lb">지역 행사</div><div class="ds">장날·축제 등 시장 일대 인구 증가</div></div>
+          <button class="switch" id="swEvent" aria-label="지역 행사"><i></i></button>
+        </div>
+        <div class="set-row">
+          <div><div class="lb">자동으로 되돌리기</div></div>
+          <button class="copy-btn" id="reautoBtn">되돌리기</button>
+        </div>
+      </div>
+      </div>
+</div>
+
+<div class="sheet-back" id="howtoBack"></div>
+<div class="sheet" id="howtoSheet" role="dialog" aria-label="연결이 안 되는 이유">
+  <div class="sheet-grab"><i></i></div>
+  <div class="sheet-head">
+    <span class="t">연결이 안 되는 이유</span>
+    <button class="sheet-x" id="howtoClose" aria-label="닫기">✕</button>
+  </div>
+  <div class="sheet-body">
+    <div class="card prose">
+      날씨는 <b>Open-Meteo</b>에서, 지도는 <b>OpenStreetMap</b>에서 받아옵니다.
+      둘 다 파일을 그냥 열어도(<code>file://</code>) 인터넷만 되면 작동합니다.
+      연결이 안 될 때 흔한 원인은 이렇습니다.
+      <ul>
+        <li><b>인터넷이 끊김</b> — 와이파이·데이터를 확인해 주세요</li>
+        <li><b>학교·공공 네트워크 차단</b> — 외부 API를 막는 경우가 있습니다. 휴대폰 핫스팟으로 열어보면 바로 구분됩니다</li>
+        <li><b>광고 차단 확장 프로그램</b> — 외부 요청을 막기도 합니다. 잠시 꺼보세요</li>
+        <li><b>서버 점검</b> — 잠시 뒤 새로고침(↻)을 눌러보세요</li>
+      </ul>
+      연결되면 제목 옆이 <b>● 실시간</b>으로 바뀌고, 지도도 실제 지도로 나옵니다.
+      <br><br>
+      연결이 안 되는 동안에도 앱은 <b>저장된 기상청 예보</b>와 <b>실제 좌표로 그린 약식 지도</b>로
+      계속 작동합니다. 예측 값은 그대로 계산돼요.
+    </div>
+  </div>
+</div>
+
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<div class="board" id="boardView">
+  <button class="b-close" id="boardClose">닫기</button>
+  <div class="b-top">하양읍 혼잡 신호판</div>
+  <div class="b-level" id="boardLevel"><span class="b-dot"></span><span>안전</span></div>
+  <div class="b-line" id="boardLine"></div>
+  <div class="b-sub" id="boardSub"></div>
+</div>
+
+<script>
+/* ─────────────────────────────────────────────
+   데이터 레이어
+   정적: 시간대 지수(추정 모델) + 일 유동인구 기준값
+   실시간: 조건 가중치(수동 → 추후 기상청·ITS API 연결)
+   지도: OpenStreetMap 타일 + Leaflet (API 키 없음)
+
+   ※ lat/lng는 대략치입니다. openstreetmap.org에서 해당 지점을
+     우클릭 → "Show address" 하면 정확한 좌표가 나오니 바꿔 넣으세요.
+   ───────────────────────────────────────────── */
+const POIS_BASE = [
+  { id:'station', name:'하양역 · 대경로', short:'하양역',
+    lat:35.910068, lng:128.818376,
+    weekday:[0.15,0.10,0.08,0.08,0.10,0.25,0.55,1.20,1.55,0.90,0.75,0.80,
+             1.00,0.85,0.75,0.80,0.95,1.35,1.60,1.20,0.75,0.45,0.30,0.20],
+    weekend:[0.12,0.08,0.06,0.06,0.08,0.12,0.20,0.35,0.55,0.70,0.85,0.95,
+             1.10,1.05,0.95,0.90,0.85,0.80,0.75,0.60,0.45,0.30,0.20,0.15] },
+  { id:'market', name:'하양전통시장 일대', short:'전통시장',
+    lat:35.9156, lng:128.8196,   /* 하양시장·꿈바우시장 일대 중심 */
+    weekday:[0.05,0.03,0.03,0.03,0.05,0.10,0.30,0.55,0.85,1.15,1.35,1.40,
+             1.45,1.25,1.05,1.00,0.95,0.85,0.55,0.30,0.15,0.08,0.05,0.05],
+    weekend:[0.05,0.03,0.03,0.03,0.05,0.08,0.20,0.40,0.70,1.05,1.40,1.55,
+             1.60,1.45,1.25,1.10,0.95,0.75,0.45,0.25,0.12,0.06,0.05,0.05] },
+  { id:'university', name:'대구가톨릭대 정문 일대', short:'대가대',
+    lat:35.91118, lng:128.80818,
+    weekday:[0.05,0.03,0.03,0.03,0.05,0.10,0.30,0.90,1.55,1.35,1.15,1.10,
+             1.40,1.20,1.05,1.10,1.30,1.45,0.90,0.45,0.25,0.15,0.08,0.05],
+    weekend:[0.05,0.03,0.03,0.03,0.03,0.05,0.08,0.12,0.20,0.30,0.40,0.50,
+             0.55,0.50,0.45,0.40,0.35,0.30,0.25,0.20,0.15,0.10,0.08,0.05] }
+];
+
+/* ─────────────────────────────────────────────
+   기준값 구성
+   지점마다 "누가 얼마나 오는지"를 나눠서 잡습니다.
+   기준 상황 = 학기중 · 평일 · 맑음 · 장날 아님
+   ───────────────────────────────────────────── */
+const BASE_COMPONENTS = {
+  station: [
+    { k:'철도 승하차',      v:2030, s:'하양역 연간 이용객 약 74만명 ÷ 365일' },
+    { k:'버스 환승·정류장',  v:1100, s:'대학 통학 노선이 몰리는 환승 거점' },
+    { k:'대경로 상가 보행',  v: 720, s:'NICE bizmap 금락리 116-239 구간(1,486명) 참고' },
+    { k:'초·중·고 통학',    v: 900, s:'학생·교직원 3,029명 중 역 일대를 지나는 통행', school:true }
+  ],
+  market: [
+    { k:'시장 이용객',      v:1250, s:'상설 점포 이용 추정' },
+    { k:'인근 주민 통행',    v: 850, s:'하양읍 주거인구 32,596명 중 일부' },
+    { k:'하교 동선',        v: 450, s:'무학중·고·하양여고 하교 후 시장 일대 통행', school:true }
+  ],
+  university: [
+    { k:'학생 등교',        v:5800, s:'재학생 약 1만명 × 학기중 등교율 58%' },
+    { k:'교직원',          v: 620, s:'전임교원·직원 추정' },
+    { k:'방문·업무',        v: 380, s:'외부 방문객, 배달·업무 통행' }
+  ]
+};
+
+/* 요일 유형별 총량 배율 — 주말에는 통행량 자체가 줄어듭니다
+   (시간대 곡선은 각각 평균 1로 맞춰져 있어서, 총량 차이는 여기서 줍니다) */
+const DAYTYPE_SCALE = {
+  station:    { weekday:1.00, weekend:0.58 },
+  market:     { weekday:1.00, weekend:1.08 },   /* 시장은 주말에 오히려 늘어남 */
+  university: { weekday:1.00, weekend:0.22 }
+};
+
+/* 요일 지수 — 평일끼리, 주말끼리 각각 평균 1이 되도록 정규화해서 씁니다 */
+const DOW_RAW = {   /* 일 월 화 수 목 금 토 */
+  station:    [0.80, 1.00, 0.98, 0.98, 1.00, 1.10, 0.95],
+  market:     [0.82, 0.94, 0.96, 0.96, 1.00, 1.14, 1.20],
+  university: [0.55, 1.04, 1.03, 1.03, 1.02, 0.88, 0.60]
+};
+const DOW_INDEX = (() => {
+  const out = {};
+  Object.keys(DOW_RAW).forEach(id => {
+    const r = DOW_RAW[id];
+    const wk = (r[1]+r[2]+r[3]+r[4]+r[5]) / 5;    /* 평일 평균 */
+    const we = (r[0]+r[6]) / 2;                    /* 주말 평균 */
+    out[id] = r.map((v, i) => v / ((i === 0 || i === 6) ? we : wk));
+  });
+  return out;
+})();
+
+/* 월별 계절 지수 (1~12월) — 야외 보행량의 계절 변화 */
+const MONTH_RAW = [0.88, 0.90, 1.05, 1.09, 1.10, 1.01, 0.94, 0.92, 1.06, 1.10, 1.02, 0.90];
+/* 계절에 얼마나 민감한지 (1=그대로, 0=전혀 안 변함) */
+const MONTH_SENS = { station:0.45, market:1.00, university:0.20 };
+
+/* 날씨 민감도 — 켜고 끄는 게 아니라 강수량·기온에 따라 연속으로 변합니다 */
+const WX_SENS = {
+  rain: { station:-0.10, market:-0.55, university:-0.18 },   /* 20mm에서 최대 */
+  heat: { station:-0.06, market:-0.28, university:-0.10 },   /* 31°→37° 구간 */
+  cold: { station:-0.05, market:-0.30, university:-0.08 }    /* 0°→-8° 구간 */
+};
+
+function monthFactor(poiId, date){
+  const m = MONTH_RAW[date.getMonth()];
+  return 1 + (m - 1) * MONTH_SENS[poiId];
+}
+function dowFactor(poiId, date){
+  return DOW_INDEX[poiId][date.getDay()];
+}
+function weatherFactorAuto(poiId){
+  if(!WX) return 1;
+  const d = WX.days[WX.todayIdx], n = WX.now;
+  if(!d) return 1;
+  /* 지금 내리는 비가 있으면 그 강도를, 없으면 그날 예보 강수량을 씁니다 */
+  const prcp = (n && n.precipitation > 0) ? n.precipitation * 8 : d.prcp;
+  const t = n ? n.temperature_2m : (d.tmax + d.tmin) / 2;
+
+  const rain = Math.min(1, prcp / 20);
+  const heat = Math.max(0, Math.min(1, (t - 31) / 6));
+  const cold = Math.max(0, Math.min(1, (0 - t) / 8));
+
+  return (1 + WX_SENS.rain[poiId] * rain)
+       * (1 + WX_SENS.heat[poiId] * heat)
+       * (1 + WX_SENS.cold[poiId] * cold);
+}
+
+/* ─────────────────────────────────────────────
+   하양읍 초·중·고 통학 인구
+   등하교 시간대에 역·시장 주변으로 몰리는 인구를 따로 잡습니다.
+   [확인] 무학고 605명(2020년 기준 25학급) · 교직원 54명
+   나머지는 학급 규모로 잡은 추정치 → 학교알리미에서 확인 후 교체
+   ───────────────────────────────────────────── */
+const K12_SCHOOLS = [
+  { name:'무학고',   lv:'고', students:605, staff:54, cal:'muhakH',  src:'확인' },
+  { name:'무학중',   lv:'중', students:700, staff:50, cal:'muhakM',  src:'확인' },
+  { name:'하양여고', lv:'고', students:300, staff:32, cal:'hayangG', src:'확인' },
+  { name:'하양여중', lv:'중', students:250, staff:26, cal:'hayangM', src:'확인' },
+  { name:'금락초',   lv:'초', students:600, staff:40, cal:'geumrakE', src:'확인' },
+  { name:'하양초',   lv:'초', students:450, staff:32, cal:'hayangE', src:'확인' },
+  { name:'하주초',   lv:'초', students:150, staff:16, cal:'hajuE',   src:'확인' }
+];
+const K12_TOTAL = K12_SCHOOLS.reduce((a, s) => a + s.students + s.staff, 0);
+
+/* 통학 인구가 각 지점을 지나는 비율 (등하교 동선 기준) */
+const K12_PASS = { station:0.22, market:0.13, university:0.00 };
+
+/* 지점별 '학교 통학' 일 인원 — 기준값 구성요소에서 school:true 인 항목의 합 */
+const SCHOOL_DAILY = {};
+function rebuildSchoolDaily(){
+  Object.keys(BASE_COMPONENTS).forEach(id => {
+    SCHOOL_DAILY[id] = BASE_COMPONENTS[id]
+      .filter(c => c.school).reduce((a, c) => a + c.v, 0);
+  });
+}
+
+/* ─────────────────────────────────────────────
+   하양읍 학교 학사일정
+   7곳 모두 학교 공식 일정표(2025~2026학년도)를 그대로 옮겼습니다.
+   학교마다 방학 시작일·시험 주간·재량휴업일이 서로 다릅니다.
+   exam 항목의 세 번째 값은 그 학교에서 시험을 치는 학년 비율입니다.
+   ───────────────────────────────────────────── */
+const SCHOOL_CALS = {
+  /* ── 무학고 (공식) ── */
+  muhakH: {
+    vac: [
+      ['2025-07-21','2025-08-05'], ['2025-12-29','2026-02-04'],
+      ['2026-07-18','2026-08-04'], ['2026-12-25','2027-02-04']
+    ],
+    vacStudy: [
+      ['2025-07-21','2025-07-25'],
+      ['2026-01-05','2026-01-16'], ['2026-01-19','2026-01-30'],
+      ['2026-07-20','2026-07-24'],
+      ['2027-01-04','2027-01-15'], ['2027-01-18','2027-01-29']
+    ],
+    exam: [
+      ['2025-04-28','2025-05-01',1], ['2025-07-03','2025-07-04',1], ['2025-07-07','2025-07-08',1],
+      ['2025-09-29','2025-10-02',1], ['2025-12-15','2025-12-17',0.67],
+      ['2026-04-28','2026-05-01',1], ['2026-07-02','2026-07-03',1], ['2026-07-06','2026-07-07',1],
+      ['2026-09-29','2026-10-02',1], ['2026-12-10','2026-12-11',0.67], ['2026-12-14','2026-12-15',0.67]
+    ],
+    off:  ['2025-10-10','2025-11-13','2025-11-14','2026-05-04','2026-11-19','2026-11-20'],
+    trip: [['2025-05-27','2025-05-30'], ['2025-10-28','2025-10-31'],
+           ['2026-05-12','2026-05-15'], ['2026-10-06','2026-10-08']],
+    fest: [['2025-11-20','2025-11-20'], ['2026-11-26','2026-11-26']],
+    senior: [['2025-11-14','2026-02-04'], ['2026-11-20','2027-02-04']]
+  },
+
+  /* ── 무학중 (공식) ── */
+  muhakM: {
+    vac: [
+      ['2025-07-19','2025-08-12'], ['2026-01-01','2026-02-02'],
+      ['2026-07-22','2026-08-12'], ['2026-12-31','2027-02-01']
+    ],
+    vacStudy: [],
+    exam: [
+      ['2025-05-01','2025-05-02',0.67],   /* 중간 (2·3학년) */
+      ['2025-07-07','2025-07-09',0.67],   /* 기말 (2·3학년) */
+      ['2025-09-29','2025-09-30',1],      /* 중간 (전학년) */
+      ['2025-11-10','2025-11-12',0.33],   /* 기말 (3학년) */
+      ['2025-12-17','2025-12-19',0.67],   /* 기말 (1·2학년) */
+      ['2026-04-27','2026-04-29',0.67],
+      ['2026-07-06','2026-07-09',0.67],
+      ['2026-10-06','2026-10-08',1],
+      ['2026-11-12','2026-11-13',0.33], ['2026-11-16','2026-11-17',0.33],
+      ['2026-12-15','2026-12-18',0.67]
+    ],
+    off:  ['2025-10-10','2025-11-13','2026-05-04','2026-11-19'],
+    trip: [['2025-06-04','2025-06-05'], ['2026-06-10','2026-06-12']],
+    fest: [['2025-10-30','2025-10-31'], ['2026-12-28','2026-12-29']],
+    senior: []
+  },
+
+  /* ── 하양여고 (공식) ── */
+  hayangG: {
+    vac: [
+      ['2025-07-23','2025-08-10'], ['2025-12-24','2026-02-01'], ['2026-02-07','2026-03-02'],
+      ['2026-07-24','2026-08-12'], ['2026-12-24','2027-01-31'], ['2027-02-06','2027-03-01']
+    ],
+    vacStudy: [],
+    exam: [
+      ['2025-04-29','2025-05-02',1],                                    /* 1차지필 (전학년) */
+      ['2025-07-03','2025-07-04',1], ['2025-07-07','2025-07-08',1],     /* 2차지필 (전학년) */
+      ['2025-09-29','2025-10-02',1],                                    /* 1차지필 (전학년) */
+      ['2025-12-04','2025-12-05',0.67], ['2025-12-08','2025-12-09',0.67], /* 2차지필 (1·2학년) */
+      ['2026-04-27','2026-04-30',1],
+      ['2026-07-02','2026-07-03',1], ['2026-07-06','2026-07-07',1],
+      ['2026-10-13','2026-10-16',1],
+      ['2026-12-03','2026-12-04',0.67], ['2026-12-07','2026-12-08',0.67]
+    ],
+    off:  ['2025-10-10','2025-11-13','2026-05-04','2026-11-19'],
+    trip: [['2025-04-08','2025-04-11'], ['2026-03-30','2026-04-02']],
+    fest: [['2025-12-19','2025-12-19'], ['2026-12-18','2026-12-18']],   /* 양원전 */
+    senior: [['2025-11-14','2026-02-01'], ['2026-11-20','2027-01-31']]
+  },
+
+  /* ── 하양여중 (공식) ── */
+  hayangM: {
+    vac: [
+      ['2025-07-19','2025-08-12'],   /* 하계휴가식 7/18 → 개학 8/13 */
+      ['2025-12-27','2026-02-01'],   /* 동계휴가식 12/26 → 개학 2/2 */
+      ['2026-02-07','2026-03-02'],   /* 졸업·종업식 2/6 이후 */
+      ['2026-07-22','2026-08-17'],   /* 하계휴가식 7/21 → 개학 8/18 */
+      ['2026-12-29','2027-01-31'],   /* 동계휴가식 12/28 → 개학 2/1 */
+      ['2027-02-06','2027-03-01']
+    ],
+    vacStudy: [],
+    exam: [
+      ['2025-04-29','2025-04-30',0.67],   /* 지필1 (2·3학년) */
+      ['2025-07-01','2025-07-03',0.67],   /* 지필2 (2·3학년) */
+      ['2025-09-30','2025-09-30',0.33],   /* 지필1 (3학년 먼저) */
+      ['2025-10-01','2025-10-02',1],      /* 지필1 (전학년) */
+      ['2025-11-18','2025-11-19',0.33],   /* 지필2 (3학년) */
+      ['2025-12-08','2025-12-10',0.67],   /* 지필2 (1·2학년) */
+      ['2026-04-28','2026-04-29',0.67],
+      ['2026-06-30','2026-07-02',0.67],
+      ['2026-10-06','2026-10-06',0.33],
+      ['2026-10-07','2026-10-08',1],
+      ['2026-11-17','2026-11-18',0.33],
+      ['2026-12-07','2026-12-09',0.67]
+    ],
+    off:  ['2025-10-10','2025-11-13','2026-05-04','2026-11-19'],
+    trip: [['2025-06-03','2025-06-05'], ['2026-05-27','2026-05-29']],
+    fest: [['2025-10-23','2025-10-24'], ['2026-10-22','2026-10-23']],  /* 어울림체육한마당·한마음음악제 */
+    senior: []
+  },
+
+  /* ── 하주초 (공식) ── */
+  hajuE: {
+    vac: [
+      ['2025-07-23','2025-08-20'],   /* 여름방학식 7/22 → 개학 8/21 */
+      ['2026-01-09','2026-03-02'],   /* 종업·졸업식 1/8 → 겨울·학년말 방학 */
+      ['2026-07-24','2026-08-25'],   /* 여름방학 → 개학 8/26 */
+      ['2027-01-01','2027-01-31'],   /* 겨울방학 */
+      ['2027-02-06','2027-02-28']    /* 종업식 2/5 → 학년말 방학 */
+    ],
+    vacStudy: [], exam: [],          /* 초등은 지필평가 없음 */
+    off:  ['2025-10-10','2026-05-04'],
+    trip: [['2025-04-16','2025-04-18'],   /* 학년별 현장체험학습 */
+           ['2025-09-04','2025-09-05'],   /* 6학년 수학여행 */
+           ['2025-10-14','2025-10-17']],
+    fest: [['2025-04-30','2025-05-02'],   /* 운동회 — 학부모가 함께 옵니다 */
+           ['2025-12-26','2025-12-26']],  /* 교육과정 발표회 */
+    senior: []
+  },
+
+  /* ── 하양초 (공식) ── */
+  hayangE: {
+    vac: [
+      ['2025-07-25','2025-08-25'],   /* 여름방학식 7/24 → 개학 8/26 */
+      ['2026-01-10','2026-03-02'],   /* 종업·졸업식 1/9 → 겨울·학년말 방학 */
+      ['2026-07-25','2026-09-02'],   /* 여름방학 40일 → 개학 9/3 */
+      ['2027-01-09','2027-01-31'],   /* 겨울방학 21일 */
+      ['2027-02-06','2027-02-28']    /* 종업식 2/5 → 학년말 방학 */
+    ],
+    vacStudy: [], exam: [],
+    off:  ['2025-10-10','2026-05-04','2026-07-17'],   /* 재량휴업일 */
+    trip: [['2025-09-17','2025-09-19'],               /* 6학년 수학여행 */
+           ['2025-09-24','2025-09-26'],               /* 현장체험학습·5학년 야영 */
+           ['2026-04-23','2026-04-24'],
+           ['2026-09-21','2026-09-22'], ['2026-09-29','2026-09-30'],
+           ['2026-11-03','2026-11-04']],
+    fest: [['2025-06-10','2025-06-12'],               /* 등굣길 버스킹 음악회 */
+           ['2025-12-11','2025-12-11'],               /* 오케스트라 정기연주회 */
+           ['2026-05-14','2026-05-14'],               /* 알뜰시장 */
+           ['2026-06-09','2026-06-11'],
+           ['2026-10-15','2026-10-15'],               /* 운동회 */
+           ['2026-11-26','2026-11-26']],
+    senior: []
+  },
+
+  /* ── 금락초 (공식) ── */
+  geumrakE: {
+    vac: [
+      ['2025-07-26','2025-08-19'],   /* 여름방학식 7/25 → 개학 8/20 */
+      ['2025-12-25','2026-02-01'],   /* 겨울방학식 12/24 → 개학 2/2 */
+      ['2026-02-07','2026-03-02'],   /* 종업·졸업식 2/6 → 학년말 방학 */
+      ['2026-07-25','2026-08-24'],   /* 여름방학식 7/24 → 개학 8/25 */
+      ['2026-12-31','2027-01-31'],   /* 겨울방학식 12/30 → 개학 2/1 */
+      ['2027-02-06','2027-02-28']    /* 종업·졸업식 2/5 */
+    ],
+    vacStudy: [], exam: [],
+    off:  ['2025-10-10','2026-05-01','2026-05-04'],   /* 학교장 재량휴업일 */
+    trip: [['2025-04-22','2025-04-22'], ['2025-04-24','2025-04-25'],
+           ['2025-09-01','2025-09-02'], ['2025-09-30','2025-09-30'], ['2025-10-02','2025-10-02'],
+           ['2026-04-21','2026-04-23'], ['2026-11-05','2026-11-05']],
+    fest: [['2025-04-10','2025-04-10'], ['2025-10-17','2025-10-17'],   /* 과학의 날·가을 운동회 */
+           ['2026-04-09','2026-04-09'], ['2026-10-16','2026-10-16']],
+    senior: []
+  }
+};
+
+const iso = d => d.toLocaleDateString('sv-SE');
+const inRanges = (ds, list) => list.some(r => ds >= r[0] && ds <= r[1]);
+const hitRange = (ds, list) => list.find(r => ds >= r[0] && ds <= r[1]);
+
+/* 상태별 등하교 곡선 (하루 합이 1) */
+const SCHOOL_CURVES = (() => {
+  const raw = {
+    /* 평상 수업일: 08시 등교, 16~17시 하교(방과후 포함) */
+    class:    [0,0,0,0,0, 0.02,0.14,0.42,0.95, 0.10,0.05,0.05,
+               0.09,0.20,0.46,0.86,0.95,0.72,0.34,0.13,0.05,0.02,0,0],
+    /* 지필평가: 등교는 같지만 12~13시에 몰려서 하교 */
+    exam:     [0,0,0,0,0, 0.02,0.16,0.46,0.98, 0.06,0.04,0.28,
+               0.95,0.80,0.30,0.16,0.12,0.10,0.05,0.02,0.01,0,0,0],
+    /* 방학 중 자습: 늦게 와서 일찍 감 */
+    vacStudy: [0,0,0,0,0, 0,0.04,0.22,0.60, 0.42,0.10,0.14,
+               0.30,0.22,0.30,0.55,0.48,0.24,0.10,0.04,0.02,0,0,0],
+    /* 축제일: 오후~저녁까지 남고 외부 방문객도 옵니다 */
+    fest:     [0,0,0,0,0, 0.02,0.10,0.36,0.80, 0.14,0.08,0.10,
+               0.16,0.16,0.22,0.40,0.62,0.88,0.70,0.34,0.12,0.04,0,0]
+  };
+  const out = {};
+  Object.keys(raw).forEach(k => {
+    const sum = raw[k].reduce((a, b) => a + b, 0);
+    out[k] = raw[k].map(v => v / sum);
+  });
+  return out;
+})();
+
+/* 학교 한 곳의 그날 상태 */
+function calState(cal, date){
+  const ds = iso(date), day = date.getDay();
+  if(day === 0 || day === 6) return { mode:'off', scale:0, exam:0, label:'주말' };
+  if(isHoliday(date))        return { mode:'off', scale:0, exam:0, label:'공휴일' };
+  if(cal.off.includes(ds))   return { mode:'off', scale:0, exam:0, label:'휴업일' };
+
+  if(inRanges(ds, cal.vac)){
+    return inRanges(ds, cal.vacStudy)
+      ? { mode:'vacStudy', scale:0.34, exam:0, label:'방학 자습' }
+      : { mode:'off',      scale:0.04, exam:0, label:'방학' };
+  }
+  const ex = hitRange(ds, cal.exam);
+  if(ex) return { mode:'exam', scale:1, exam:ex[2],
+                  label: ex[2] >= 1 ? '지필평가' : '지필평가(일부 학년)' };
+  if(inRanges(ds, cal.fest))  return { mode:'fest',  scale:1.15, exam:0, label:'학교 축제' };
+  if(inRanges(ds, cal.trip))  return { mode:'class', scale:0.55, exam:0, label:'현장체험학습' };
+  if(inRanges(ds, cal.senior))return { mode:'class', scale:0.88, exam:0, label:'수업일 (3학년 단축)' };
+  return { mode:'class', scale:1, exam:0, label:'수업일' };
+}
+
+/* 학교 6곳을 학생 수로 가중평균 */
+function k12State(date){
+  const d = date || new Date();
+  let sum = 0, tot = 0, examW = 0, festW = 0;
+  const detail = [];
+  K12_SCHOOLS.forEach(sc => {
+    const st = calState(SCHOOL_CALS[sc.cal], d);
+    const n = sc.students + sc.staff;
+    sum += st.scale * n; tot += n;
+    examW += st.exam * st.scale * n;
+    if(st.mode === 'fest') festW += n;
+    detail.push({ name:sc.name, src:sc.src, label:st.label, mode:st.mode, scale:st.scale });
+  });
+  const scale = tot ? sum / tot : 0;
+
+  /* 화면에 보여줄 대표 라벨 — 학생이 가장 많은 상태 */
+  const share = {};
+  K12_SCHOOLS.forEach((sc, i) => {
+    const k = detail[i].label;
+    share[k] = (share[k] || 0) + sc.students + sc.staff;
+  });
+  const short = k => k.replace(' (3학년 단축)', '').replace('(일부 학년)', '');
+  const keys = Object.keys(share).sort((a, b) => share[b] - share[a]);
+  let label = short(keys[0] || '수업일');
+  const second = keys.slice(1).map(short).find(k => k !== label);
+  if(second && share[keys[keys.map(short).indexOf(second)]] / tot >= 0.25){
+    label += ' · ' + second + ' 일부';
+  }
+
+  return {
+    scale, detail, label,
+    mode: scale === 0 ? 'off' : 'class',
+    examShare: sum ? examW / sum : 0,
+    festShare: tot ? festW / tot : 0
+  };
+}
+function k12Active(){ return k12State(refDate()).scale; }
+
+/* 그날의 등하교 곡선 — 시험·축제 학교 비중만큼 섞습니다 */
+function schoolCurve(date){
+  const st = k12State(date || refDate());
+  const e = st.examShare, f = st.festShare;
+  if(e < 0.02 && f < 0.02) return SCHOOL_CURVES.class;
+  const c = SCHOOL_CURVES.class, ex = SCHOOL_CURVES.exam, fs = SCHOOL_CURVES.fest;
+  const rest = Math.max(0, 1 - e - f);
+  return c.map((v, i) => v * rest + ex[i] * e + fs[i] * f);
+}
+
+
+
+/* 구성요소를 더해 일 기준값을 만듭니다 */
+const BASELINE = {};
+function rebuildBaseline(){
+  if(typeof rebuildSchoolDaily === 'function') rebuildSchoolDaily();
+  Object.keys(BASE_COMPONENTS).forEach(id => {
+    BASELINE[id] = {
+      daily: BASE_COMPONENTS[id].reduce((a, c) => a + c.v, 0),
+      measured: false,
+      src: '구성요소 합산'
+    };
+  });
+}
+rebuildBaseline();
+
+/* 조건별 지점 민감도 (곱 가중치) */
+const SENS = {
+  weather:{
+    clear:{station:1.00, market:1.00, university:1.00},
+    rain: {station:1.10, market:0.78, university:0.95},
+    heat: {station:0.95, market:0.85, university:0.95},
+    cold: {station:0.95, market:0.88, university:0.95}
+  },
+  academic:{
+    normal:  {station:1.00, market:1.00, university:1.00},
+    exam:    {station:1.05, market:1.00, university:1.12},
+    festival:{station:1.10, market:1.03, university:1.35},
+    vacation:{station:0.75, market:0.95, university:0.45}
+  },
+  bus:  {station:1.12, market:1.02, university:1.08},
+  event:{station:1.08, market:2.20, university:1.00}   /* 하양장(끝자리 4·9일) */
+};
+const FACTOR_LABEL = {
+  rain:'비 예보', heat:'폭염', cold:'한파',
+  exam:'시험기간', festival:'축제', vacation:'방학',
+  bus:'버스 집중', event:'지역 행사'
+};
+
+/* 혼잡도 등급 — 평소 최대 혼잡을 100으로 봤을 때 */
+const LEVELS = [
+  {key:'safe',  label:'안전', color:'#00A05A', max:70},
+  {key:'watch', label:'관심', color:'#E8AE00', max:95},
+  {key:'care',  label:'주의', color:'#F07A13', max:125},
+  {key:'risk',  label:'위험', color:'#E03427', max:Infinity}
+];
+
+let POIS = JSON.parse(JSON.stringify(POIS_BASE));
+const DOW_KR = ['일','월','화','수','목','금','토'];
+let selectedDow = new Date().getDay();      /* 보고 있는 요일 */
+let dayType = (selectedDow === 0 || selectedDow === 6) ? 'weekend' : 'weekday';
+
+/* 선택한 요일에 해당하는 이번 주 날짜 — 학사일정·장날 판정에 씁니다 */
+function refDate(){
+  const now = new Date();
+  const d = new Date(now);
+  d.setDate(now.getDate() + (selectedDow - now.getDay()));
+  return d;
+}
+function setDow(dow){
+  selectedDow = dow;
+  dayType = (dow === 0 || dow === 6) ? 'weekend' : 'weekday';
+}
+let cond = { weather:'clear', academic:'normal', bus:false, event:false };
+let notifEnabled = false, notifiedKey = null;
+let liveMode = true, selectedPoiId = 'station', selectedHour = new Date().getHours();
+let playing = false, playTimer = null;
+
+const $ = id => document.getElementById(id);
+const fmt = n => Math.round(n).toLocaleString('ko-KR');
+
+function normalize(arr){ const avg = arr.reduce((a,b)=>a+b,0)/arr.length; return arr.map(v=>v/avg); }
+function weightFor(poiId){
+  const ref = refDate();
+  let w;
+  if(autoMode){
+    /* 자동: 날씨는 강수량·기온에 따라 연속으로, 요일·계절도 함께 반영 */
+    w = weatherFactorAuto(poiId)
+      * SENS.academic[cond.academic][poiId]
+      * monthFactor(poiId, ref)
+      * dowFactor(poiId, ref);
+  }else{
+    /* 직접 조정: 고른 조건만 반영 */
+    w = SENS.weather[cond.weather][poiId] * SENS.academic[cond.academic][poiId];
+  }
+  w *= DAYTYPE_SCALE[poiId][dayType];
+  if(cond.bus)   w *= SENS.bus[poiId];
+  if(cond.event) w *= SENS.event[poiId];
+  return w;
+}
+function activeCauses(){
+  const c = [];
+  if(autoMode){
+    const st = k12State(refDate());
+    if(st.examShare >= 0.3) c.push('학교 시험 (이른 하교)');
+    else if(st.festShare >= 0.3) c.push('학교 축제');
+    else if(st.scale < 0.9) c.push('학교 ' + st.label.split(' · ')[0]);
+  }
+  if(cond.weather !== 'clear') c.push(FACTOR_LABEL[cond.weather]);
+  if(cond.academic !== 'normal') c.push(FACTOR_LABEL[cond.academic]);
+  if(cond.bus) c.push(FACTOR_LABEL.bus);
+  if(cond.event) c.push(FACTOR_LABEL.event);
+  return c;
+}
+/* 하루 평균 대비 비율 (%) — 시간대 탭의 참고 지표 */
+function indexFor(poi, hour, withCond = true){
+  const avg = BASELINE[poi.id].daily / 24;
+  return avg ? Math.round(peopleFor(poi, hour, withCond) / avg * 100) : 0;
+}
+/* 인원 = 일반 통행(시간대 곡선) + 학교 통학(등하교 곡선)
+   학교 통학은 방학·휴업일에 거의 사라집니다 */
+function peopleFor(poi, hour, withCond = true){
+  const total = BASELINE[poi.id].daily;
+  const sd = SCHOOL_DAILY[poi.id] || 0;
+  const other = total - sd;
+  const curve = normalize(poi[dayType])[hour] / 24;
+  const w = withCond ? weightFor(poi.id) : 1;
+  const k = withCond ? k12Active() : 1;
+  const sc = withCond ? schoolCurve()[hour] : SCHOOL_CURVES.class[hour];
+  return (other * curve + sd * sc * k) * w;
+}
+/* 평상시(조건 없는 평일) 하루 중 가장 붐빌 때의 시간당 인원 */
+const _peakCache = {};
+function peakNormal(poi){
+  const key = poi.id + '|' + BASELINE[poi.id].daily;
+  if(_peakCache[key]) return _peakCache[key];
+  const total = BASELINE[poi.id].daily, sd = SCHOOL_DAILY[poi.id] || 0;
+  const other = total - sd;
+  const idx = normalize(poi.weekday);
+  let mx = 0;
+  for(let h = 0; h < 24; h++){
+    mx = Math.max(mx, other * idx[h] / 24 + sd * SCHOOL_CURVES.class[h]);
+  }
+  _peakCache[key] = mx;
+  return mx;
+}
+
+/* 혼잡도 = 그 지점이 평소 가장 붐빌 때 대비 몇 % 인가 */
+function congestionFor(poi, hour){
+  return Math.round(peopleFor(poi, hour) / peakNormal(poi) * 100);
+}
+
+/* 오늘 조건 때문에 평상시보다 얼마나 늘었는지 (같은 시간대끼리 비교) */
+function deviationFor(poi, hour){
+  const before = peopleFor(poi, hour, false), after = peopleFor(poi, hour, true);
+  if(!before) return 0;
+  return Math.round((after / before - 1) * 100);
+}
+
+function levelFor(pct){ return LEVELS.find(l => pct <= l.max); }
+function hourLabel(h){
+  if(h === 0) return '자정';
+  if(h === 12) return '낮 12시';
+  return (h < 12 ? '오전 ' : '오후 ') + (h % 12 === 0 ? 12 : h % 12) + '시';
+}
+
+
+/* ─────────────────────────────────────────────
+   자동 분석 레이어
+   앱을 열면 아래 네 가지를 스스로 판정합니다.
+   1) 날씨   — Open-Meteo 예보 (아래 날씨 레이어)
+   2) 학사일정 — 대구가톨릭대 학사일정 규칙
+   3) 장날   — 하양장 오일장 (매월 끝자리 4·9일)
+   4) 통근시간 — 평일 출퇴근·통학 집중 시간대
+   ───────────────────────────────────────────── */
+
+/* 대학 학사일정 (월-일 기준). 공식 학사일정이 나오면 이 표만 고치면 됩니다. */
+const ACADEMIC_RULES = [
+  { from:'01-01', to:'02-28', v:'vacation', label:'겨울방학' },
+  { from:'03-01', to:'04-14', v:'normal',   label:'1학기 수업' },
+  { from:'04-15', to:'04-21', v:'exam',     label:'1학기 중간고사' },
+  { from:'04-22', to:'05-12', v:'normal',   label:'1학기 수업' },
+  { from:'05-13', to:'05-15', v:'festival', label:'대학 축제' },
+  { from:'05-16', to:'06-09', v:'normal',   label:'1학기 수업' },
+  { from:'06-10', to:'06-20', v:'exam',     label:'1학기 기말고사' },
+  { from:'06-21', to:'08-31', v:'vacation', label:'여름방학' },
+  { from:'09-01', to:'10-17', v:'normal',   label:'2학기 수업' },
+  { from:'10-18', to:'10-24', v:'exam',     label:'2학기 중간고사' },
+  { from:'10-25', to:'11-04', v:'normal',   label:'2학기 수업' },
+  { from:'11-05', to:'11-07', v:'festival', label:'대학 축제' },
+  { from:'11-08', to:'12-09', v:'normal',   label:'2학기 수업' },
+  { from:'12-10', to:'12-20', v:'exam',     label:'2학기 기말고사' },
+  { from:'12-21', to:'12-31', v:'vacation', label:'겨울방학' }
+];
+
+
+
+const mmdd = d => String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+
+function academicFor(date){
+  const k = mmdd(date);
+  const r = ACADEMIC_RULES.find(r => k >= r.from && k <= r.to);
+  return r || { v:'normal', label:'학기중' };
+}
+
+/* 공휴일 — 주말과 같은 통행 패턴으로 봅니다 */
+const HOLIDAYS = [
+  '2026-01-01','2026-02-16','2026-02-17','2026-02-18','2026-03-01','2026-03-02',
+  '2026-05-05','2026-05-24','2026-05-25','2026-06-03','2026-06-06','2026-08-15','2026-08-17',
+  '2026-09-24','2026-09-25','2026-09-26','2026-10-03','2026-10-05','2026-10-09','2026-12-25'
+];
+
+function isHoliday(date){ return HOLIDAYS.includes(date.toLocaleDateString('sv-SE')); }
+function isMarketDay(date){ const d = date.getDate() % 10; return d === 4 || d === 9; }
+function isRushHour(date, hour){
+  const wk = date.getDay() !== 0 && date.getDay() !== 6 && !isHoliday(date);
+  return wk && ((hour >= 7 && hour <= 9) || (hour >= 17 && hour <= 19));
+}
+
+/* 오늘 조건을 전부 자동으로 채웁니다 */
+let autoMode = true;
+let autoInfo = {};
+
+function runAutoAnalysis(){
+  const now = new Date();
+  const ref = refDate();
+  const hour = liveMode ? now.getHours() : selectedHour;
+  const weekend = ref.getDay() === 0 || ref.getDay() === 6 || isHoliday(ref);
+  const ac = academicFor(ref);
+  const market = isMarketDay(ref);
+  const rush = isRushHour(ref, hour);
+
+  const wxDay = WX ? WX.days[WX.todayIdx] : null;
+  const wxCond = wxDay ? wxToCond(wxDay) : 'clear';
+
+  autoInfo = {
+    weekend, academic:ac, market, rush, hour,
+    weather:wxCond,
+    weatherDesc: wxDay
+      ? `${WX_COND_LABEL[wxCond]}`
+        + (WX && WX.now ? ` · 현재 ${Math.round(WX.now.temperature_2m)}° · 습도 ${Math.round(WX.now.relative_humidity_2m)}%` : '')
+        + ` · 오늘 ${Math.round(wxDay.tmax)}° / ${Math.round(wxDay.tmin)}°`
+        + (wxDay.prcp > 0 ? ` · 강수 ${wxDay.prcp.toFixed(1)}mm` : '')
+      : '예보를 불러오는 중'
+  };
+
+  if(!autoMode) return;
+  cond.weather = wxCond;
+  cond.academic = ac.v;
+  cond.bus = rush;
+  cond.event = market;
+  syncControls();
+}
+
+/* 자동 판정 결과를 수동 컨트롤 표시에도 반영 */
+function syncControls(){
+  document.querySelectorAll('.seg.mini').forEach(seg => {
+    seg.querySelectorAll('button').forEach(b =>
+      b.classList.toggle('on', b.dataset.v === cond[seg.dataset.factor]));
+  });
+  $('swBus').classList.toggle('on', cond.bus);
+  $('swEvent').classList.toggle('on', cond.event);
+
+}
+
+function buildAutoCard(){
+  const box = $('autoCard'); if(!box) return;
+  const a = autoInfo;
+  const rows = [
+    { ic:'🌤️', lb:'날씨', ds:a.weatherDesc + (wxSource === 'live' ? '' : wxSource === 'snapshot' ? ' (기상청 예보)' : ' (평년값 추정)'),
+      val:WX_COND_LABEL[a.weather], hit:a.weather !== 'clear' },
+    { ic:'🎓', lb:'학사일정', ds:'대구가톨릭대 · ' + a.academic.label, val:a.academic.label, hit:a.academic.v !== 'normal' },
+    { ic:'🛒', lb:'하양장', ds: a.market ? '오늘은 오일장이 서는 날 (끝자리 4·9일)' : '오늘은 장날이 아닙니다 (끝자리 4·9일)',
+      val: a.market ? '장날' : '평상시', hit:a.market },
+    { ic:'🚌', lb:'통근·통학', ds: a.rush ? '버스가 몰리는 시간대입니다' : '집중 시간대가 아닙니다',
+      val: a.rush ? '집중' : '보통', hit:a.rush },
+    { ic:'📅', lb:'요일 구분', ds: a.weekend ? '주말·공휴일 통행 패턴을 씁니다' : '평일 통행 패턴을 씁니다',
+      val: a.weekend ? '주말·휴일' : '평일', hit:a.weekend },
+    { ic:'🎒', lb:'초·중·고 (' + K12_SCHOOLS.length + '곳)',
+      ds: (() => {
+        const st = k12State(refDate());
+        const n = Math.round(K12_SCHOOLS.reduce((a, x) => a + x.students, 0) * st.scale);
+        if(st.scale < 0.02) return '전 학교가 쉽니다 — 통학 인구가 없습니다';
+        const g = {};
+        st.detail.forEach(d => { (g[d.label] = g[d.label] || []).push(d.name); });
+        const lines = Object.keys(g).map(k => k + ': ' + g[k].join(', ')).join(' / ');
+        let tail = '';
+        if(st.examShare >= 0.3) tail = ' · 시험이라 점심 무렵 하교합니다';
+        else if(st.festShare >= 0.3) tail = ' · 축제라 저녁까지 남습니다';
+        return `약 ${fmt(n)}명 등하교 · ` + lines + tail;
+      })(),
+      val: k12State(refDate()).label.split(' · ')[0],
+      hit: k12State(refDate()).scale < 0.95 }
+  ];
+  box.innerHTML = rows.map(r => `
+    <div class="auto-row">
+      <div class="ic">${r.ic}</div>
+      <div><div class="lb">${r.lb}</div><div class="ds">${r.ds}</div></div>
+      <div class="vv ${r.hit ? 'hit' : ''}">${r.val}</div>
+    </div>`).join('');
+  $('autoStamp').textContent = autoMode ? '자동 반영 중' : '직접 조정 중';
+}
+
+/* ─────────────────────────────────────────────
+   날씨 레이어 — Open-Meteo (API 키 없음)
+   기상청(KMA) 등 각국 기상청 모델을 그대로 제공하는 공개 API입니다.
+   지난 7일 실황 + 앞으로 7일 예보를 한 번에 받아옵니다.
+   ───────────────────────────────────────────── */
+const HAYANG_LATLNG = { lat:35.9123, lng:128.8154 };   /* 세 지점의 중심 */
+const WX_URL = 'https://api.open-meteo.com/v1/forecast'
+  + '?latitude=' + HAYANG_LATLNG.lat + '&longitude=' + HAYANG_LATLNG.lng
+  + '&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code'
+  + '&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m'
+  + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum'
+  + '&past_days=7&forecast_days=8&timezone=Asia%2FSeoul';
+
+let WX = null;              /* {days:[...], todayIdx} */
+let wxSource = null;       /* 'live' | 'normal' */
+
+/* ── 기상청 예보 스냅샷 ──
+   인터넷이 막혔을 때 쓰는 값입니다. 기상청 중기예보(대구·경북남부내륙, 2026.8.11 발표)를
+   하양읍 기준으로 옮겨 적었습니다. 이 기간이 지나면 아래 평년값으로 자동 전환됩니다.
+   갱신하려면 weather.go.kr 중기예보를 보고 날짜와 숫자만 바꾸면 됩니다. */
+const WX_SNAPSHOT = {
+  issued: '2026-08-11',
+  issuedTime: '17:00',
+  src: '기상청 단기·중기예보',
+  /* 대구·경북 통보문의 기온 범위 중 경북남부내륙(경산·하양) 쪽 값을 씁니다 */
+  days: {
+    '2026-08-11': { code:0,  tmax:32.5, tmin:24.4, prcp:0 },   /* 대체로 맑음 */
+    '2026-08-12': { code:2,  tmax:31,   tmin:24,   prcp:0 },   /* 가끔 구름많음 */
+    '2026-08-13': { code:80, tmax:34,   tmin:24,   prcp:12 },  /* 오후~저녁 곳에 따라 소나기 */
+    '2026-08-14': { code:80, tmax:34,   tmin:24,   prcp:10 },  /* 대체로 흐림, 곳에 따라 소나기 */
+    '2026-08-15': { code:3,  tmax:33,   tmin:23,   prcp:0 },   /* 대체로 흐림 */
+    '2026-08-16': { code:2,  tmax:33,   tmin:24,   prcp:0 },   /* 중기예보 */
+    '2026-08-17': { code:2,  tmax:33,   tmin:24,   prcp:0 },
+    '2026-08-18': { code:2,  tmax:33,   tmin:24,   prcp:0 }
+  }
+};
+
+/* 대구·경산 기후 평년값 (기상청 1991~2020). 예보 기간 밖의 날짜에 씁니다. */
+const CLIMATE = {
+  /*        1     2     3     4     5     6     7     8     9    10    11    12 */
+  tmax: [ 6.0,  8.8, 14.2, 20.6, 25.4, 28.4, 30.4, 31.0, 26.9, 21.6, 14.5,  7.8],
+  tmin: [-3.8, -1.9,  2.5,  7.9, 13.5, 18.4, 22.5, 22.8, 17.6, 10.5,  3.6, -2.4],
+  hum:  [  52,   51,   51,   51,   56,   63,   73,   73,   68,   62,   58,   55],
+  rain: [  20,   28,   46,   71,   78,  128,  224,  235,  141,   45,   32,   19],  /* 월 강수량 mm */
+  rday: [ 5.5,  5.3,  7.4,  7.5,  7.6,  9.0, 13.5, 12.4,  8.0,  4.7,  5.4,  5.1]   /* 월 강수일수 */
+};
+
+/* 날짜를 넣으면 늘 같은 값이 나오는 의사난수 (매번 흔들리면 신뢰가 떨어집니다) */
+function seeded(str){
+  let h = 2166136261;
+  for(let i = 0; i < str.length; i++){ h ^= str.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return ((h >>> 0) % 1000) / 1000;
+}
+
+/* 평년값으로 15일치를 만들어 냅니다 */
+function buildClimateFallback(){
+  const days = [], today = new Date();
+  today.setHours(0,0,0,0);
+  for(let k = -7; k <= 7; k++){
+    const d = new Date(today); d.setDate(today.getDate() + k);
+    const m = d.getMonth();
+    const key = d.toLocaleDateString('sv-SE');
+    const snap = WX_SNAPSHOT.days[key];
+    if(snap){
+      days.push({ date:key, code:snap.code, tmax:snap.tmax, tmin:snap.tmin, prcp:snap.prcp, real:true });
+      continue;
+    }
+    const r = seeded(key), r2 = seeded(key + 'b');
+    const wet = r < (CLIMATE.rday[m] / 30);                  /* 그 달 강수일수 비율만큼 비 */
+    const swing = (r2 - 0.5) * 5;                            /* ±2.5도 자연 변동 */
+    days.push({
+      date: key,
+      code: wet ? 61 : (r2 > 0.6 ? 2 : 0),
+      tmax: +(CLIMATE.tmax[m] + swing).toFixed(1),
+      tmin: +(CLIMATE.tmin[m] + swing).toFixed(1),
+      prcp: wet ? +(CLIMATE.rain[m] / CLIMATE.rday[m] * (0.4 + r2)).toFixed(1) : 0
+    });
+  }
+  const todayIdx = 7;
+  const t = days[todayIdx], m = today.getMonth(), hr = new Date().getHours();
+  /* 하루 기온 곡선: 새벽 5시 최저 → 오후 3시 최고 → 다시 하강 */
+  const f = (hr >= 5 && hr <= 15)
+    ? (hr - 5) / 10                              /* 아침~오후: 상승 */
+    : 1 - (((hr - 15) + 24) % 24) / 14;           /* 오후~새벽: 하강 */
+  const nowTemp = t.tmin + (t.tmax - t.tmin) * Math.max(0, Math.min(1, f));
+  const nowHum  = Math.min(95, Math.max(25, CLIMATE.hum[m] - (nowTemp - (t.tmax + t.tmin) / 2) * 2.2));
+  const t0 = days[7];
+  return {
+    fromSnapshot: !!(t0 && t0.real),
+    now: {
+      temperature_2m: +nowTemp.toFixed(1),
+      relative_humidity_2m: Math.round(nowHum),
+      /* 체감온도: 기상청 기준 — 습도 10%p 오를 때마다 약 1도 상승 (기온이 높을수록 크게 작용) */
+      apparent_temperature: +(nowTemp + Math.max(0, (nowTemp - 20) / 10) * (nowHum - 60) / 10).toFixed(1),
+      precipitation: t.prcp > 0 ? +(t.prcp / 8).toFixed(1) : 0,
+      weather_code: t.code,
+      wind_speed_10m: +(1.6 + seeded(t.date + 'w') * 1.8).toFixed(1)
+    },
+    days, todayIdx
+  };
+}
+let wxPickedIdx = null;     /* 사용자가 고른 날짜 */
+
+/* 날씨코드 → 아이콘 */
+function wxIcon(code, prcp){
+  if(code >= 95) return '⛈️';
+  if(code >= 71 && code <= 77) return '🌨️';
+  if(code >= 51 || prcp > 0) return '🌧️';
+  if(code >= 45 && code <= 48) return '🌫️';
+  if(code === 0) return '☀️';
+  if(code <= 2) return '🌤️';
+  return '☁️';
+}
+/* 하루 날씨 → 앱의 4가지 조건 중 하나 */
+function wxToCond(d){
+  if(d.prcp >= 1 || d.code >= 51) return 'rain';
+  if(d.tmax >= 33) return 'heat';
+  if(d.tmin <= -6) return 'cold';
+  return 'clear';
+}
+const WX_COND_LABEL = { clear:'맑음', rain:'비', heat:'폭염', cold:'한파' };
+
+/* 날씨코드 → 우리말 설명 */
+function wxDesc(code){
+  if(code === 0) return '맑음';
+  if(code <= 2) return '구름 조금';
+  if(code === 3) return '흐림';
+  if(code <= 48) return '안개';
+  if(code <= 57) return '이슬비';
+  if(code <= 67) return '비';
+  if(code <= 77) return '눈';
+  if(code <= 82) return '소나기';
+  if(code <= 86) return '진눈깨비';
+  return '천둥번개';
+}
+
+let wxFetchedAt = null;      /* 마지막 성공 시각 */
+let wxRetryTimer = null;
+
+async function loadWeather(manual){
+  const note = $('wxNote'), btn = $('wxRefresh');
+  if(btn) btn.classList.add('busy');
+  clearTimeout(wxRetryTimer);
+
+  try{
+    /* 캐시를 우회해 매번 새 관측값을 받습니다 */
+    const res = await fetch(WX_URL + '&_=' + Date.now(), { cache:'no-store' });
+    if(!res.ok) throw new Error('응답 오류 ' + res.status);
+    const j = await res.json();
+    const d = j.daily;
+    const todayStr = new Date().toLocaleDateString('sv-SE');
+    WX = {
+      now: j.current || null,
+      days: d.time.map((t, i) => ({
+        date: t, code: d.weather_code[i],
+        tmax: d.temperature_2m_max[i], tmin: d.temperature_2m_min[i],
+        prcp: d.precipitation_sum[i]
+      })),
+      todayIdx: Math.max(0, d.time.indexOf(todayStr))
+    };
+    wxSource = 'live';
+    wxFetchedAt = new Date();
+    wxPickedIdx = WX.todayIdx;
+    note.hidden = true;
+    runAutoAnalysis();
+    buildWxNow();
+    buildWxStrip();
+    render();
+  }catch(err){
+    /* 실패하면 평년값으로 화면을 채우고, 곧바로 다시 시도합니다 */
+    if(wxSource !== 'live'){
+      WX = buildClimateFallback();
+      wxSource = WX.fromSnapshot ? 'snapshot' : 'normal';
+      wxPickedIdx = WX.todayIdx;
+      runAutoAnalysis();
+      buildWxNow();
+      buildWxStrip();
+      render();
+    }
+    note.hidden = false;
+    const fallback = wxSource === 'snapshot'
+      ? '저장된 기상청 예보(' + WX_SNAPSHOT.issued + ' ' + (WX_SNAPSHOT.issuedTime||'') + ' 발표)'
+      : '대구·경산 기후 평년값';
+    note.innerHTML = `날씨 서버에 연결하지 못했습니다. 지금은 ${fallback}으로 표시 중이에요.
+      <button class="linkbtn" id="wxHelp">연결이 안 되는 이유</button>`;
+    const help = $('wxHelp');
+    if(help) help.addEventListener('click', () => {
+      openHowto();
+    });
+    wxRetryTimer = setTimeout(() => loadWeather(false), 60000);   /* 1분 뒤 재시도 */
+  }finally{
+    if(btn) btn.classList.remove('busy');
+    updateWxStamp();
+  }
+}
+
+/* 제목 옆에 실시간 여부와 갱신 시각을 보여줍니다 */
+function updateWxStamp(){
+  const el = $('wxStamp'); if(!el) return;
+  if(wxSource === 'live' && wxFetchedAt){
+    const mins = Math.floor((Date.now() - wxFetchedAt) / 60000);
+    el.innerHTML = '<span class="wx-live"><i></i>실시간 · '
+      + (mins < 1 ? '방금 갱신' : mins + '분 전 갱신') + '</span>';
+  }else if(wxSource === 'snapshot'){
+    /* 저장된 예보 */
+    const d = new Date(WX_SNAPSHOT.issued + 'T00:00:00');
+    el.textContent = WX_SNAPSHOT.src + ' · ' + (d.getMonth()+1) + '.' + d.getDate()
+      + ' ' + (WX_SNAPSHOT.issuedTime || '') + ' 발표';
+  }else{
+    el.textContent = '평년값 추정';
+  }
+}
+
+function buildWxNow(){
+  if(!WX || !WX.now) return;
+  ['wxNowTemp','wxNowHum','wxNowFeel','wxNowWind'].forEach(i => {
+    const e = $(i); if(e) e.classList.remove('sk');
+  });
+  const n = WX.now;
+  $('wxNowIc').textContent   = wxIcon(n.weather_code, n.precipitation);
+  $('wxNowTemp').textContent = Math.round(n.temperature_2m);
+  $('wxNowHum').textContent  = Math.round(n.relative_humidity_2m) + '%';
+  $('wxNowFeel').textContent = Math.round(n.apparent_temperature) + '°';
+  $('wxNowWind').textContent = n.wind_speed_10m.toFixed(1) + 'm/s';
+  const d = WX.days[WX.todayIdx];
+  const hhmm = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit', hour12:false});
+  $('wxNowSub').textContent = wxDesc(n.weather_code)
+    + (wxSource === 'live' ? ` · ${hhmm} 기준`
+       : wxSource === 'snapshot' ? ' · 기상청 예보' : ' · 평년값 추정')
+    + (d ? ` · 오늘 ${Math.round(d.tmax)}° / ${Math.round(d.tmin)}°` : '')
+    + (n.precipitation > 0 ? ` · 강수 ${n.precipitation}mm` : '');
+}
+
+/* 가로 스트립을 오늘 날짜가 보이는 위치로 옮깁니다 */
+function scrollWxToToday(){
+  const strip = $('wxStrip'); if(!strip || !WX) return;
+  const idx = (wxPickedIdx !== null && wxPickedIdx !== undefined) ? wxPickedIdx : WX.todayIdx;
+  const el = strip.children[idx]; if(!el) return;
+  if(strip.clientWidth === 0){ setTimeout(scrollWxToToday, 200); return; }
+  strip.scrollLeft = Math.max(0, el.offsetLeft - strip.clientWidth / 2 + el.offsetWidth / 2);
+}
+
+function buildWxStrip(){
+  const strip = $('wxStrip'); if(!strip || !WX) return;
+  strip.innerHTML = '';
+  WX.days.forEach((d, i) => {
+    const dt = new Date(d.date + 'T00:00:00');
+    const c = wxToCond(d);
+    const el = document.createElement('button');
+    el.className = 'wx-day'
+      + (i < WX.todayIdx ? ' past' : '')
+      + (i === WX.todayIdx ? ' today' : '')
+      + (i === wxPickedIdx ? ' sel' : '');
+    el.innerHTML = `
+      <div class="d">${i === WX.todayIdx ? '오늘' : dt.toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'})}</div>
+      <div class="ic">${wxIcon(d.code, d.prcp)}</div>
+      <div class="t">${Math.round(d.tmax)}°<i> ${Math.round(d.tmin)}°</i></div>
+      <div class="mm">${d.prcp > 0 ? d.prcp.toFixed(1) + 'mm' : ''}</div>
+      <div class="wx-tagline ${c}">${WX_COND_LABEL[c]}</div>`;
+    el.addEventListener('click', () => {
+      /* 그날 날씨로 바꿔서 미리보기 — 오늘을 다시 누르면 자동으로 복귀 */
+      wxPickedIdx = i;
+      if(i === WX.todayIdx){ autoMode = true; runAutoAnalysis(); }
+      else { autoMode = false; cond.weather = wxToCond(d); syncControls(); }
+      buildWxStrip(); buildAutoCard(); render();
+    });
+    strip.appendChild(el);
+  });
+  scrollWxToToday();
+}
+
+/* ─── OpenStreetMap 지도 ─── */
+let leafMap = null;
+const poiMarkers = {};
+
+/* 하양읍이 화면에 꽉 차게 보여줄 범위 */
+const HAYANG_BOUNDS = [[35.8830, 128.7620], [35.9480, 128.8680]];
+/* 드래그로 벗어날 수 있는 한계 — 화면보다 넉넉해야 지도가 잠기지 않습니다 */
+const PAN_BOUNDS    = [[35.8580, 128.7250], [35.9730, 128.9050]];
+
+let mapMode = null;          /* 'leaflet' | 'svg' */
+
+/* ── 오프라인 대체 지도 ──
+   인터넷이 막혀 Leaflet을 못 받아올 때, 실제 좌표를 그대로 투영해
+   같은 위치 관계를 SVG로 그립니다. 마커 색·크기·숫자는 동일하게 작동합니다. */
+function initSvgMap(){
+  const el = document.getElementById('leafmap');
+  if(!el) return;
+  mapMode = 'svg';
+
+  /* 지도 칸의 실제 비율에 맞춰 그려야 위아래가 비지 않습니다 */
+  const boxW = el.clientWidth || 400, boxH = el.clientHeight || 300;
+  const VW = 700, VH = Math.round(VW * boxH / boxW);
+
+  const lats = POIS.map(p => p.lat), lngs = POIS.map(p => p.lng);
+  let S = Math.min(...lats), N = Math.max(...lats);
+  let W = Math.min(...lngs), E = Math.max(...lngs);
+  /* 지점들 주변으로 여유를 준 뒤, 화면 비율에 맞게 넓은 쪽을 늘립니다 */
+  const cLat = (N + S) / 2, cLng = (E + W) / 2;
+  const kx = Math.cos(cLat * Math.PI / 180);          /* 위도에 따른 경도 축소 */
+  let hLat = Math.max((N - S) / 2, 0.004) * 1.45;
+  let hLng = Math.max((E - W) / 2, 0.004) * 1.45;
+  const wantRatio = (VW / VH);                        /* 가로:세로 */
+  const curRatio = (hLng * kx) / hLat;
+  if(curRatio < wantRatio) hLng = hLat * wantRatio / kx;
+  else                     hLat = hLng * kx / wantRatio;
+  S = cLat - hLat; N = cLat + hLat;
+  W = cLng - hLng; E = cLng + hLng;
+  const px = lng => (lng - W) / (E - W) * VW;
+  const py = lat => (N - lat) / (N - S) * VH;
+
+  /* 축척 막대 (1km) */
+  const kmInDeg = 1 / (111.0 * Math.cos(35.91 * Math.PI / 180));
+  const barW = Math.min(VW * 0.4, kmInDeg / (E - W) * VW);
+
+  el.innerHTML = `
+    <svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:100%">
+      <rect width="${VW}" height="${VH}" fill="#E6EBF3"/>
+      <g stroke="#DCE3EE" stroke-width="1">
+        ${[1,2,3,4].map(i => `<line x1="0" y1="${VH*i/5}" x2="${VW}" y2="${VH*i/5}"/>`).join('')}
+        ${[1,2,3,4,5,6].map(i => `<line x1="${VW*i/7}" y1="0" x2="${VW*i/7}" y2="${VH}"/>`).join('')}
+      </g>
+      <line x1="${px(POIS[2].lng)}" y1="${py(POIS[2].lat)}" x2="${px(POIS[0].lng)}" y2="${py(POIS[0].lat)}"
+            stroke="#C3CDDC" stroke-width="8" stroke-linecap="round"/>
+      <line x1="${px(POIS[1].lng)}" y1="${py(POIS[1].lat)}" x2="${px(POIS[0].lng)}" y2="${py(POIS[0].lat)}"
+            stroke="#C3CDDC" stroke-width="8" stroke-linecap="round"/>
+      ${POIS.map(p => `
+        <g>
+          <circle id="svgring-${p.id}" cx="${px(p.lng)}" cy="${py(p.lat)}" r="17" fill="none" stroke="#16202E" stroke-width="0"/>
+          <circle id="svgdot-${p.id}" cx="${px(p.lng)}" cy="${py(p.lat)}" r="12" fill="#00A05A" stroke="#fff" stroke-width="2.5" style="cursor:pointer"/>
+          <text x="${px(p.lng)}" y="${py(p.lat) - 26}" text-anchor="middle"
+                style="font-size:17px;font-weight:600;fill:#3D4959">${p.short}</text>
+          <text id="svgnum-${p.id}" x="${px(p.lng)}" y="${py(p.lat) + 34}" text-anchor="middle"
+                style="font-size:16px;font-weight:700;fill:#00A05A">--</text>
+        </g>`).join('')}
+      <g transform="translate(20,${VH - 22})">
+        <line x1="0" y1="0" x2="${barW}" y2="0" stroke="#8B96A6" stroke-width="2.5"/>
+        <line x1="0" y1="-5" x2="0" y2="5" stroke="#8B96A6" stroke-width="2.5"/>
+        <line x1="${barW}" y1="-5" x2="${barW}" y2="5" stroke="#8B96A6" stroke-width="2.5"/>
+        <text x="${barW/2}" y="-9" text-anchor="middle" style="font-size:13px;fill:#8B96A6">1km</text>
+      </g>
+      <text x="${VW - 14}" y="${VH - 12}" text-anchor="end" style="font-size:12px;fill:#95A0B1">오프라인 약식 지도 · 실제 좌표 기준</text>
+    </svg>`;
+
+  POIS.forEach(p => {
+    const dot = document.getElementById('svgdot-' + p.id);
+    if(dot) dot.addEventListener('click', () => { selectedPoiId = p.id; render(); });
+  });
+}
+
+function initMap(){
+  if(typeof L === 'undefined'){ initSvgMap(); return; }
+  const el = document.getElementById('leafmap');
+  if(!el || leafMap) return;                 /* 두 번 만들면 Leaflet이 오류를 냅니다 */
+
+  mapMode = 'leaflet';
+  leafMap = L.map(el, {
+    scrollWheelZoom:false,
+    zoomControl:true,
+    minZoom:12, maxZoom:18,
+    maxBounds: PAN_BOUNDS,
+    maxBoundsViscosity: 0.85
+  }).fitBounds(HAYANG_BOUNDS, {padding:[6,6], animate:false});
+
+  const tiles = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    maxZoom: 19,
+    attribution: '지도 © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> 기여자'
+  }).addTo(leafMap);
+
+  let tileFails = 0;
+  tiles.on('tileerror', () => {
+    if(++tileFails === 6){
+      const box = document.getElementById('tileWarn');
+      if(box) box.style.display = 'block';
+    }
+  });
+  tiles.on('tileload', () => {
+    const box = document.getElementById('tileWarn');
+    if(box) box.style.display = 'none';
+  });
+
+  POIS.forEach(poi => {
+    const m = L.circleMarker([poi.lat, poi.lng], {
+      radius: 12, color:'#FFFFFF', weight: 2.5,
+      fillColor: '#00A05A', fillOpacity: 0.9
+    }).addTo(leafMap);
+    m.bindTooltip('', {permanent:true, direction:'top', offset:[0,-10], className:'poi-tip'});
+    m.on('click', () => { selectedPoiId = poi.id; render(); });
+    poiMarkers[poi.id] = m;
+  });
+
+  refreshMap(60); refreshMap(400);
+}
+
+/* 지도 탭을 열 때 만들고, 열 때마다 크기를 다시 계산합니다 */
+function ensureMap(){
+  if(!mapMode) initMap();
+  if(mapMode === 'svg'){ initSvgMap(); }
+  updateMap();
+  if(mapMode === 'leaflet'){ refreshMap(60); refreshMap(400); }
+}
+
+/* 숨겨진 상태에서 만들어진 지도는 크기를 0으로 잡습니다. 보일 때 다시 계산합니다 */
+function refreshMap(delay, tries){
+  tries = tries || 0;
+  setTimeout(() => {
+    if(!leafMap) return;
+    const el = document.getElementById('leafmap');
+    if(!el || el.clientWidth === 0 || el.clientHeight === 0){
+      if(tries < 12) refreshMap(250, tries + 1);   /* 아직 안 보이면 잠시 뒤 재시도 */
+      return;
+    }
+    leafMap.invalidateSize(true);
+    leafMap.fitBounds(HAYANG_BOUNDS, {padding:[6,6], animate:false});
+  }, delay);
+}
+
+window.addEventListener('resize', () => {
+  if(mapMode === 'leaflet') refreshMap(150);
+  else if(mapMode === 'svg'){ initSvgMap(); updateMap(); }
+});
+
+function updateMap(){
+  if(mapMode === 'svg'){
+    POIS.forEach(poi => {
+      const pct = congestionFor(poi, selectedHour), lv = levelFor(pct);
+      const dot = document.getElementById('svgdot-' + poi.id);
+      const ring = document.getElementById('svgring-' + poi.id);
+      const num = document.getElementById('svgnum-' + poi.id);
+      if(dot){ dot.setAttribute('fill', lv.color); dot.setAttribute('r', 9 + Math.min(pct,150)/11); }
+      if(ring) ring.setAttribute('stroke-width', poi.id === selectedPoiId ? 2.5 : 0);
+      if(num){ num.textContent = fmt(peopleFor(poi, selectedHour)) + '명'; num.style.fill = lv.color; }
+    });
+    return;
+  }
+  if(!leafMap) return;
+  POIS.forEach(poi => {
+    const m = poiMarkers[poi.id]; if(!m) return;
+    const pct = congestionFor(poi, selectedHour);
+    const lv = levelFor(pct);
+    const sel = poi.id === selectedPoiId;
+    m.setStyle({ fillColor: lv.color, color: sel ? '#16202E' : '#FFFFFF', weight: sel ? 3.5 : 2.5 });
+    m.setRadius(9 + Math.min(pct, 150) / 11);
+    m.setTooltipContent(
+      `<span class="tip-nm">${poi.short}</span>` +
+      `<span class="tip-num" style="color:${lv.color}">${fmt(peopleFor(poi, selectedHour))}명</span>`
+    );
+  });
+}
+
+/* ── 탭 ── */
+$('tabbar').addEventListener('click', e => {
+  const btn = e.target.closest('button'); if(!btn) return;
+  document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b === btn));
+  document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'screen-' + btn.dataset.tab));
+  window.scrollTo({top:0});
+  /* 숨겨진 상태에서 만들어진 지도는 크기를 다시 잡아줘야 합니다 */
+  if(btn.dataset.tab === 'map') ensureMap();
+  if(btn.dataset.tab === 'predict') setTimeout(scrollWxToToday, 80);
+});
+const goTab = n => document.querySelector(`#tabbar button[data-tab="${n}"]`).click();
+
+/* ── 목록 ── */
+function buildPlaces(container, hour){
+  container.innerHTML = '';
+  POIS.map(poi => ({poi, pct:congestionFor(poi, hour), ppl:peopleFor(poi, hour)}))
+      .sort((a,b) => b.pct - a.pct)
+      .forEach((it, i) => {
+        const lv = levelFor(it.pct);
+        const btn = document.createElement('button');
+        btn.className = 'place' + (it.poi.id === selectedPoiId ? ' sel' : '');
+        btn.innerHTML = `
+          <span class="rankno">${i+1}</span>
+          <span>
+            <span class="nm">${it.poi.name}</span>
+            <span class="ppl">${fmt(it.ppl)}명/시간</span>
+            <span class="meter"><i style="width:${Math.min(it.pct,150)/1.5}%;background:${lv.color}"></i></span>
+          </span>
+          <span class="chip ${lv.key}">${lv.label}</span>`;
+        btn.addEventListener('click', () => { selectedPoiId = it.poi.id; render(); goTab('hours'); });
+        container.appendChild(btn);
+      });
+}
+
+function buildDelta(){
+  const box = $('deltaList'); box.innerHTML = '';
+  POIS.forEach(poi => {
+    const before = peopleFor(poi, selectedHour, false);
+    const after  = peopleFor(poi, selectedHour, true);
+    const diff = Math.round((after/before - 1) * 100);
+    const row = document.createElement('div');
+    row.className = 'place'; row.style.gridTemplateColumns = '1fr auto';
+    row.innerHTML = `
+      <span>
+        <span class="nm">${poi.short}</span>
+        <span class="ppl">${fmt(before)} → ${fmt(after)}명/시간</span>
+      </span>
+      <span class="chip ${diff > 0 ? 'care' : (diff < 0 ? 'safe' : 'watch')}">${diff > 0 ? '+' : ''}${diff}%</span>`;
+    box.appendChild(row);
+  });
+}
+
+function buildBase(){
+  const box = $('baseList'); if(!box) return;
+  box.innerHTML = '';
+  POIS.forEach(poi => {
+    const comps = BASE_COMPONENTS[poi.id] || [];
+    const total = BASELINE[poi.id].daily;
+    const wrap = document.createElement('div');
+    wrap.className = 'base-block';
+    wrap.innerHTML = `
+      <div class="base-head">
+        <span class="nm">${poi.name}</span>
+        <span class="tot">${fmt(total)}<span class="u">명/일</span></span>
+      </div>
+      ${comps.map(c => `
+        <div class="comp${c.school ? ' school' : ''}">
+          <div class="cbar"><i style="width:${(c.v / total * 100).toFixed(1)}%"></i></div>
+          <div class="ck">${c.k}${c.school ? ' <span class="tag">등하교</span>' : ''}</div>
+          <div class="cv">${fmt(c.v)}</div>
+          <div class="cs">${c.s}</div>
+        </div>`).join('')}
+      ${comps.length ? '' : '<div class="comp"><div class="cs">직접 입력한 값입니다.</div></div>'}
+    `;
+    box.appendChild(wrap);
+  });
+}
+
+/* ── 메인 렌더 ── */
+function render(){
+  if(autoMode) runAutoAnalysis();
+  buildAutoCard();
+  const now = new Date();
+  $('clockText').textContent = now.toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit', hour12:false});
+  $('dayLabel').textContent = now.toLocaleDateString('ko-KR', {month:'long', day:'numeric', weekday:'short'});
+
+  if(liveMode) selectedHour = now.getHours();
+  $('hourSlider').value = selectedHour;
+  $('scrubHourLabel').textContent = hourLabel(selectedHour);
+  $('liveBtn').classList.toggle('on', liveMode);
+  $('liveText').textContent = liveMode ? '지금 시각' : hourLabel(selectedHour) + ' 보는 중';
+
+  const realHour = now.getHours();
+  const selPoi = POIS.find(p => p.id === selectedPoiId);
+  const pct = congestionFor(selPoi, selectedHour);
+  const lv = levelFor(pct);
+
+  LEVELS.forEach(l => { $('lamp-' + l.key).className = 'lamp' + (l.key === lv.key ? ' lit ' + l.key : ''); });
+  $('heroPlace').textContent = selPoi.name;
+  $('heroLine').textContent = lv.label;
+  countUp($('heroPeople'), peopleFor(selPoi, selectedHour), '명 / 시간');
+  $('panelStamp').textContent = (liveMode ? '실시간' : '예측') + ' · '
+    + String(selectedHour).padStart(2,'0') + ':00';
+  $('heroSub').textContent = `${DOW_KR[selectedDow]}요일 · ${dayType === 'weekday' ? '평일' : '주말·휴일'} 통행 패턴`;
+  const causes = activeCauses();
+  $('heroCause').innerHTML = causes.length
+    ? causes.map(c => `<span>${c}</span>`).join('')
+    : '<span>추가 조건 없음</span>';
+
+  drawSpark(selPoi);
+  buildFlow(selPoi);
+
+  /* 지도 */
+  updateMap();
+
+  /* 경보(항상 실제 현재 시각 기준) */
+  const hot = POIS.map(poi => ({poi, pct:congestionFor(poi, realHour)}))
+                  .filter(x => x.pct > 95).sort((a,b) => b.pct - a.pct);
+  const warn = $('warnBox');
+  if(hot.length){
+    const l = levelFor(hot[0].pct);
+    warn.classList.add('show');
+    warn.style.background = `var(--${l.key}-soft)`;
+    warn.style.color = `var(--${l.key}-ink)`;
+    $('warnText').textContent = `${l.label} · ${hot[0].poi.short} 약 ${fmt(peopleFor(hot[0].poi, realHour))}명/시간`;
+    const key = realHour + '-' + hot[0].poi.id + '-' + l.key;
+    if(notifEnabled && (l.key === 'care' || l.key === 'risk') && notifiedKey !== key){
+      fireNotification(hot[0].poi, hot[0].pct); notifiedKey = key;
+    }
+  } else { warn.classList.remove('show'); notifiedKey = null; }
+
+  $('nowListTitle').textContent = (liveMode ? '지금' : hourLabel(selectedHour)) + ' 혼잡한 곳';
+  buildPlaces($('placesNow'), selectedHour);
+  buildPlaces($('placesMap'), selectedHour);
+  buildDelta();
+  buildBase();
+
+  /* 요일 버튼 */
+  const dowBox = $('dayToggle');
+  if(dowBox){
+    const today = new Date().getDay();
+    dowBox.innerHTML = DOW_KR.map((k, i) => {
+      const d = new Date(); d.setDate(d.getDate() + (i - today));
+      const cls = (i === 0 ? 'sun' : i === 6 ? 'sat' : '')
+        + (i === selectedDow ? ' on' : '') + (i === today ? ' today' : '');
+      return `<button data-dow="${i}" class="${cls}">${k}<span class="dd">${d.getDate()}</span></button>`;
+    }).join('');
+  }
+
+  /* 지점 칩 */
+  const pills = $('poiPills'); pills.innerHTML = '';
+  POIS.forEach(poi => {
+    const b = document.createElement('button');
+    b.className = 'pill' + (poi.id === selectedPoiId ? ' on' : '');
+    b.textContent = poi.short;
+    b.addEventListener('click', () => { selectedPoiId = poi.id; render(); });
+    pills.appendChild(b);
+  });
+
+  /* 시간대 표 */
+  const list = $('hoursList'); list.innerHTML = '';
+  for(let h = 0; h < 24; h++){
+    const p = congestionFor(selPoi, h), l = levelFor(p);
+    const row = document.createElement('div');
+    row.className = 'hrow' + (h === selectedHour ? ' now' : '');
+    row.innerHTML = `
+      <div class="hh">${String(h).padStart(2,'0')}시</div>
+      <div class="track"><i style="width:${Math.min(p,150)/1.5}%;background:${l.color}"></i></div>
+      <div class="val">${p}%</div>
+      <div class="ppl">${fmt(peopleFor(selPoi, h))}명</div>`;
+    list.appendChild(row);
+  }
+
+  buildMessage();
+  updateBoard();
+}
+
+/* 오늘 하루 중 가장 붐비는 시간 · 가장 한산한 시간 */
+function buildFlow(poi){
+  const box = $('flowCard'); if(!box) return;
+  $('flowPoi').textContent = poi.short;
+  let hi = 0, lo = 0;
+  for(let h = 1; h < 24; h++){
+    if(congestionFor(poi, h) > congestionFor(poi, hi)) hi = h;
+    if(congestionFor(poi, h) < congestionFor(poi, lo)) lo = h;
+  }
+  /* 한산한 시간은 새벽을 빼고 활동 시간대(07~22시)에서 찾습니다 */
+  let calm = 7;
+  for(let h = 7; h <= 22; h++) if(congestionFor(poi, h) < congestionFor(poi, calm)) calm = h;
+  const hiL = levelFor(congestionFor(poi, hi));
+  box.className = 'card flow';
+  box.innerHTML = `
+    <div>
+      <div class="fk"><i style="background:${hiL.color}"></i>가장 붐빌 때</div>
+      <div class="fv">${hourLabel(hi)}</div>
+      <div class="fs">${fmt(peopleFor(poi, hi))}명/시간 · ${congestionFor(poi, hi)}%</div>
+    </div>
+    <div>
+      <div class="fk"><i style="background:var(--safe)"></i>가기 좋은 때</div>
+      <div class="fv">${hourLabel(calm)}</div>
+      <div class="fs">${fmt(peopleFor(poi, calm))}명/시간 · ${congestionFor(poi, calm)}%</div>
+    </div>`;
+}
+
+/* ── 전달 문안 ── */
+function buildMessage(){
+  const realHour = new Date().getHours();
+  const top = POIS.map(poi => ({poi, pct:congestionFor(poi, realHour)})).sort((a,b) => b.pct - a.pct)[0];
+  const l = levelFor(top.pct);
+  const causes = activeCauses();
+  const endH = (realHour + 2) % 24;
+  const txt =
+`[하양 AI 안전알림]
+현재 혼잡도 : ${l.label}
+${String(realHour).padStart(2,'0')}:00~${String(endH).padStart(2,'0')}:00 ${top.poi.name} 혼잡도 ${l.label}
+예상 인원 : 약 ${fmt(peopleFor(top.poi, realHour))}명/시간
+원인:
+${(causes.length ? causes : ['시간대 통행 패턴']).map(c => '- ' + c).join('\n')}`;
+  $('msgPreview').textContent = txt;
+  return txt;
+}
+
+function updateBoard(){
+  const realHour = new Date().getHours();
+  const top = POIS.map(poi => ({poi, pct:congestionFor(poi, realHour)})).sort((a,b) => b.pct - a.pct)[0];
+  const l = levelFor(top.pct);
+  const lvEl = $('boardLevel');
+  lvEl.querySelector('.b-dot').style.background = l.color;
+  lvEl.querySelector('.b-dot').style.color = l.color;
+  lvEl.querySelector('span:last-child').textContent = l.label;
+  $('boardLine').textContent = `${top.poi.name} · 약 ${fmt(peopleFor(top.poi, realHour))}명/시간`;
+  const causes = activeCauses();
+  $('boardSub').textContent = `${String(realHour).padStart(2,'0')}시 기준 · ${causes.length ? '원인: ' + causes.join(', ') : '특이 조건 없음'}`;
+}
+
+function fireNotification(poi, pct){
+  if(!('Notification' in window) || Notification.permission !== 'granted') return;
+  new Notification('하양 AI 안전알림', {
+    body: `${poi.name} ${levelFor(pct).label} — 약 ${fmt(peopleFor(poi, new Date().getHours()))}명/시간이 예상됩니다.`
+  });
+}
+
+/* ── 컨트롤 ── */
+$('dayToggle').addEventListener('click', e => {
+  const btn = e.target.closest('button'); if(!btn) return;
+  setDow(Number(btn.dataset.dow));
+  if(selectedDow !== new Date().getDay()) liveMode = false;
+  render();
+});
+
+document.querySelectorAll('.seg.mini').forEach(seg => {
+  seg.addEventListener('click', e => {
+    const btn = e.target.closest('button'); if(!btn) return;
+    cond[seg.dataset.factor] = btn.dataset.v;
+    seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
+    autoMode = false; buildAutoCard();
+    render();
+  });
+});
+$('swBus').addEventListener('click', () => { cond.bus = !cond.bus; $('swBus').classList.toggle('on', cond.bus); autoMode = false; buildAutoCard(); render(); });
+$('swEvent').addEventListener('click', () => { cond.event = !cond.event; $('swEvent').classList.toggle('on', cond.event); autoMode = false; buildAutoCard(); render(); });
+
+let resizeTimer = null;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => refreshMap(0), 200);
+});
+
+$('manualToggle').addEventListener('click', openSheet);
+$('reautoBtn').addEventListener('click', () => {
+  toast('자동 분석으로 되돌렸어요');
+  autoMode = true;
+  if(WX) wxPickedIdx = WX.todayIdx;
+  runAutoAnalysis(); buildWxStrip(); buildAutoCard(); render();
+});
+
+$('notifSwitch').addEventListener('click', async () => {
+  if(!('Notification' in window)){ toast('이 브라우저는 알림을 지원하지 않아요'); return; }
+  if(notifEnabled){ notifEnabled = false; $('notifSwitch').classList.remove('on'); return; }
+  const perm = await Notification.requestPermission();
+  notifEnabled = perm === 'granted';
+  $('notifSwitch').classList.toggle('on', notifEnabled);
+  toast(notifEnabled ? '알림을 켰어요' : '브라우저 설정에서 알림을 허용해 주세요');
+});
+
+$('copyMsg').addEventListener('click', async () => {
+  try{ await navigator.clipboard.writeText(buildMessage()); toast('문안을 복사했어요'); }
+  catch(e){ toast('복사하지 못했어요'); }
+});
+
+$('boardBtn').addEventListener('click', () => { updateBoard(); $('boardView').classList.add('on'); });
+$('boardClose').addEventListener('click', () => $('boardView').classList.remove('on'));
+
+$('liveBtn').addEventListener('click', () => {
+  liveMode = true; setDow(new Date().getDay()); autoMode = true; playing = false; clearInterval(playTimer); $('playBtn').textContent = '▶'; render();
+});
+$('hourSlider').addEventListener('input', e => {
+  liveMode = false; playing = false; clearInterval(playTimer); $('playBtn').textContent = '▶';
+  selectedHour = Number(e.target.value); render();
+});
+$('playBtn').addEventListener('click', () => {
+  playing = !playing;
+  if(playing){
+    liveMode = false; $('playBtn').textContent = '❚❚';
+    playTimer = setInterval(() => { selectedHour = (selectedHour + 1) % 24; render(); }, 700);
+  } else { $('playBtn').textContent = '▶'; clearInterval(playTimer); }
+  render();
+});
+
+$('pickFile').addEventListener('click', () => $('csvUpload').click());
+$('csvUpload').addEventListener('change', e => {
+  const file = e.target.files[0]; if(!file) return;
+  const reader = new FileReader();
+  reader.onload = evt => {
+    const status = $('uploadStatus');
+    try{
+      const lines = evt.target.result.trim().split('\n').filter(Boolean);
+      const start = lines[0].toLowerCase().includes('poi') ? 1 : 0;
+      const buckets = {};
+      POIS.forEach(p => { buckets[p.id] = {weekday:new Array(24).fill(null), weekend:new Array(24).fill(null)}; });
+      for(let i = start; i < lines.length; i++){
+        const [poiId, h, type, pop] = lines[i].split(',').map(s => s.trim());
+        if(!buckets[poiId]) continue;
+        const hh = Number(h), pp = Number(pop);
+        if(hh < 0 || hh > 23 || isNaN(pp)) continue;
+        buckets[poiId][type === 'weekend' ? 'weekend' : 'weekday'][hh] = pp;
+      }
+      let changed = 0;
+      Object.keys(buckets).forEach(poiId => {
+        ['weekday','weekend'].forEach(key => {
+          if(buckets[poiId][key].every(v => v !== null)){
+            POIS.find(p => p.id === poiId)[key] = buckets[poiId][key];
+            /* 실측 합계를 일 기준값으로 함께 반영 */
+            if(key === 'weekday'){
+              BASELINE[poiId].daily = buckets[poiId][key].reduce((a,b) => a + b, 0);
+              BASELINE[poiId].measured = true;
+              BASELINE[poiId].src = '업로드한 실측 CSV';
+            }
+            changed++;
+          }
+        });
+      });
+      if(changed === 0) throw new Error('24시간이 모두 채워진 지점이 없어요. 형식을 확인해 주세요.');
+      status.textContent = `${changed}개 지점·요일을 실측값으로 바꿨어요.`;
+      status.className = 'status ok';
+      render();
+    }catch(err){
+      status.textContent = '불러오지 못했어요 — ' + err.message;
+      status.className = 'status err';
+    }
+  };
+  reader.readAsText(file);
+});
+
+$('resetBtn').addEventListener('click', () => {
+  POIS = JSON.parse(JSON.stringify(POIS_BASE));
+  rebuildBaseline();
+  $('uploadStatus').textContent = '추정값으로 되돌렸어요.';
+  $('uploadStatus').className = 'status ok';
+  $('csvUpload').value = '';
+  render();
+});
+
+runAutoAnalysis();
+/* ══════ 앱 사용감 (UX) ══════ */
+
+/* 토스트 — alert 대신 */
+let toastTimer = null;
+function toast(msg){
+  const el = $('toast'); if(!el) return;
+  el.textContent = msg;
+  el.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove('on'), 2200);
+}
+
+/* 안내 시트 */
+function openHowto(){
+  $('howtoSheet').classList.add('on');
+  $('howtoBack').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function closeHowto(){
+  $('howtoSheet').classList.remove('on');
+  $('howtoBack').classList.remove('on');
+  document.body.style.overflow = '';
+}
+$('howtoBack').addEventListener('click', closeHowto);
+$('howtoClose').addEventListener('click', closeHowto);
+
+/* 바텀시트 */
+function openSheet(){
+  $('manualSheet').classList.add('on');
+  $('sheetBack').classList.add('on');
+  document.body.style.overflow = 'hidden';
+}
+function closeSheet(){
+  $('manualSheet').classList.remove('on');
+  $('sheetBack').classList.remove('on');
+  document.body.style.overflow = '';
+}
+$('sheetBack').addEventListener('click', closeSheet);
+$('sheetClose').addEventListener('click', closeSheet);
+document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeSheet(); closeHowto(); } });
+
+/* 시트를 아래로 끌어내리면 닫기 */
+(() => {
+  const sh = $('manualSheet'); let y0 = null, dy = 0;
+  const grab = sh.querySelector('.sheet-grab'), head = sh.querySelector('.sheet-head');
+  const start = e => { y0 = e.touches[0].clientY; dy = 0; sh.style.transition = 'none'; };
+  const move  = e => {
+    if(y0 === null) return;
+    dy = Math.max(0, e.touches[0].clientY - y0);
+    sh.style.transform = `translate(-50%, ${dy}px)`;
+  };
+  const end = () => {
+    if(y0 === null) return;
+    sh.style.transition = ''; sh.style.transform = '';
+    if(dy > 90) closeSheet();
+    y0 = null;
+  };
+  [grab, head].forEach(el => {
+    el.addEventListener('touchstart', start, {passive:true});
+    el.addEventListener('touchmove', move, {passive:true});
+    el.addEventListener('touchend', end);
+  });
+})();
+
+/* 상단바 축소 */
+let lastStuck = false;
+window.addEventListener('scroll', () => {
+  const on = window.scrollY > 12;
+  if(on !== lastStuck){ document.querySelector('.appbar').classList.toggle('stuck', on); lastStuck = on; }
+}, {passive:true});
+
+/* 숫자 카운트업 */
+function countUp(el, to, suffix){
+  const from = Number(String(el.dataset.v || 0));
+  if(from === to){ el.textContent = fmt(to) + suffix; return; }
+  el.dataset.v = to;
+  if(window.matchMedia('(prefers-reduced-motion: reduce)').matches){
+    el.textContent = fmt(to) + suffix; return;
+  }
+  const t0 = performance.now(), dur = 520;
+  (function step(t){
+    const k = Math.min(1, (t - t0) / dur);
+    const e = 1 - Math.pow(1 - k, 3);
+    el.textContent = fmt(from + (to - from) * e) + suffix;
+    if(k < 1) requestAnimationFrame(step);
+  })(t0);
+}
+
+/* 신호판 24시간 미니그래프 */
+function drawSpark(poi){
+  const svg = $('heroSpark'); if(!svg) return;
+  const W = 240, H = 38, n = 24;
+  const vals = [];
+  for(let h = 0; h < n; h++) vals.push(congestionFor(poi, h));
+  const mx = Math.max(...vals, 100);
+  const x = i => i / (n - 1) * W;
+  const y = v => H - 3 - (v / mx) * (H - 7);
+  let d = '';
+  vals.forEach((v, i) => { d += (i ? ' L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); });
+  const area = d + ` L${W} ${H} L0 ${H} Z`;
+  const cur = selectedHour;
+  const lv = levelFor(vals[cur]);
+  svg.innerHTML = `
+    <defs><linearGradient id="sparkg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="${lv.color}" stop-opacity=".38"/>
+      <stop offset="100%" stop-color="${lv.color}" stop-opacity="0"/>
+    </linearGradient></defs>
+    <path d="${area}" fill="url(#sparkg)"/>
+    <path d="${d}" fill="none" stroke="${lv.color}" stroke-width="1.6"
+          stroke-linejoin="round" stroke-linecap="round" opacity=".92"/>
+    <line x1="${x(cur).toFixed(1)}" y1="0" x2="${x(cur).toFixed(1)}" y2="${H}"
+          stroke="#ffffff" stroke-opacity=".22" stroke-width="1"/>
+    <circle cx="${x(cur).toFixed(1)}" cy="${y(vals[cur]).toFixed(1)}" r="3"
+            fill="${lv.color}" stroke="#0D1216" stroke-width="1.5"/>`;
+}
+
+/* 당겨서 새로고침 */
+(() => {
+  const ptr = document.createElement('div');
+  ptr.className = 'ptr'; ptr.innerHTML = '<i>↻</i>';
+  document.querySelector('.app').appendChild(ptr);
+  const mark = ptr.querySelector('i');
+  let y0 = null, pull = 0;
+  window.addEventListener('touchstart', e => {
+    if(window.scrollY <= 0 && !$('manualSheet').classList.contains('on')) y0 = e.touches[0].clientY;
+  }, {passive:true});
+  window.addEventListener('touchmove', e => {
+    if(y0 === null) return;
+    pull = Math.max(0, e.touches[0].clientY - y0);
+    if(pull > 4){
+      const k = Math.min(1, pull / 90);
+      mark.style.opacity = k;
+      mark.style.transform = `translateY(${(pull * .35).toFixed(0)}px) scale(${(.7 + k * .3).toFixed(2)}) rotate(${(pull * 2).toFixed(0)}deg)`;
+    }
+  }, {passive:true});
+  window.addEventListener('touchend', () => {
+    if(y0 !== null && pull > 80){
+      loadWeather(true);
+      toast('새로고침하는 중');
+    }
+    mark.style.opacity = 0; mark.style.transform = '';
+    y0 = null; pull = 0;
+  });
+})();
+
+render();
+loadWeather(false);
+setInterval(() => { if(liveMode) render(); }, 30000);
+setInterval(() => loadWeather(false), 10 * 60 * 1000);   /* 10분마다 자동 갱신 */
+setInterval(updateWxStamp, 30 * 1000);                  /* 갱신 시각 표시 */
+
+/* 앱으로 돌아오면 5분 이상 지났을 때 즉시 갱신 */
+document.addEventListener('visibilitychange', () => {
+  if(document.visibilityState !== 'visible') return;
+  if(!wxFetchedAt || Date.now() - wxFetchedAt > 5 * 60 * 1000) loadWeather(false);
+});
+
+$('wxRefresh').addEventListener('click', () => loadWeather(true));
+</script>
+</body>
+</html>
