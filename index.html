@@ -69,6 +69,26 @@ if(typeof L === 'undefined'){
   .appbar .where{font-size:11.5px;color:var(--ink-3);margin-top:2px;letter-spacing:-.01em;
     max-height:20px;overflow:hidden;transition:max-height .22s var(--ease), opacity .18s;}
   .appbar.stuck .where{max-height:0;opacity:0;}
+  .picker-wrap{position:relative;flex-shrink:0;}
+  .picker{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;
+    background:var(--card);border:1px solid var(--line);color:var(--ink);
+    border-radius:999px;padding:8px 13px;letter-spacing:-.03em;
+    transition:transform .12s var(--ease), border-color .18s;}
+  .picker:active{transform:scale(.95);}
+  .picker.open{border-color:var(--ink);}
+  .picker .cv{font-size:9px;color:var(--ink-3);transition:transform .22s var(--ease);}
+  .picker.open .cv{transform:rotate(180deg);}
+  .pick-menu{position:absolute;top:calc(100% + 7px);right:0;background:var(--card);
+    border:1px solid var(--line);border-radius:16px;box-shadow:var(--sh-2);padding:5px;min-width:172px;
+    z-index:50;opacity:0;pointer-events:none;transform:translateY(-8px) scale(.97);
+    transition:opacity .18s, transform .2s var(--ease);}
+  .pick-menu.on{opacity:1;pointer-events:auto;transform:none;}
+  .pick-menu button{display:flex;width:100%;align-items:center;gap:9px;border:none;background:none;
+    padding:10px 11px;border-radius:11px;font-size:13.5px;font-weight:600;color:var(--ink-2);
+    text-align:left;letter-spacing:-.025em;}
+  .pick-menu button.on{background:var(--paper);color:var(--ink);font-weight:700;}
+  .pick-menu .lvdot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+  .pick-menu .mnum{margin-left:auto;font-family:var(--mono);font-size:10.5px;color:var(--ink-3);letter-spacing:-.03em;}
   .live{display:flex;align-items:center;gap:6px;font-size:12px;font-weight:600;
     background:var(--card);border:1px solid var(--line);color:var(--ink-2);
     border-radius:999px;padding:6px 12px;transition:transform .12s var(--ease);}
@@ -102,6 +122,9 @@ if(typeof L === 'undefined'){
     background-size:4px 4px;}
   .panel-top{display:flex;align-items:center;justify-content:space-between;gap:10px;
     font-size:11px;letter-spacing:.14em;color:#75858F;font-weight:600;position:relative;}
+  .stamp{background:none;border:none;color:#75858F;font-size:11px;font-weight:600;letter-spacing:.14em;
+    padding:3px 0 3px 8px;font-family:inherit;}
+  .stamp.back{color:#A9B7C0;text-decoration:underline;text-underline-offset:3px;}
   .panel-body{display:flex;gap:16px;align-items:center;margin-top:13px;position:relative;}
 
   .lamps{background:#05090C;border-radius:15px;padding:9px 8px;display:flex;flex-direction:column;gap:7px;
@@ -194,12 +217,6 @@ if(typeof L === 'undefined'){
   input[type=range]{width:100%;accent-color:var(--road);margin-top:4px;}
 
   /* ── 세그먼트 / 칩 ── */
-  .seg{display:flex;background:#E4E8E5;border-radius:13px;padding:3px;gap:3px;margin-bottom:13px;}
-  .seg button{flex:1;border:none;background:transparent;color:var(--ink-2);font-size:12.5px;
-    font-weight:600;padding:9px 0;border-radius:10px;letter-spacing:-.02em;
-    transition:background .18s var(--ease), color .18s, box-shadow .18s;}
-  .seg button.on{background:var(--card);color:var(--ink);box-shadow:0 1px 3px rgba(16,22,25,.13);}
-  .seg.mini button{font-size:12px;padding:8px 0;}
 
   .dow{display:grid;grid-template-columns:repeat(7,1fr);gap:5px;margin-bottom:13px;}
   .dow button{border:1px solid var(--line);background:var(--card);color:var(--ink-2);
@@ -256,38 +273,14 @@ if(typeof L === 'undefined'){
     box-shadow:0 1px 3px rgba(0,0,0,.22);transition:transform .22s var(--ease);}
   .switch.on{background:var(--safe);}
   .switch.on i{transform:translateX(18px);}
-  .factor{padding:15px;border-bottom:1px solid var(--line-2);}
-  .factor:last-child{border-bottom:none;}
-  .factor .lb{font-size:13.5px;font-weight:600;margin-bottom:2px;letter-spacing:-.025em;}
-  .factor .ds{font-size:11px;color:var(--ink-3);margin-bottom:10px;line-height:1.5;}
 
-  /* ── 기준값 구성 ── */
-  .flow{display:grid;grid-template-columns:1fr 1fr;}
-  .flow.one{grid-template-columns:1fr;}
-  .flow.one > div:first-child{border-right:none;}
-  .flow > div{padding:14px 15px;}
-  .flow > div:first-child{border-right:1px solid var(--line-2);}
-  .flow .fk{font-size:11px;color:var(--ink-3);font-weight:600;display:flex;align-items:center;gap:5px;}
-  .flow .fk i{width:6px;height:6px;border-radius:50%;}
-  .flow .fv{font-size:19px;font-weight:800;letter-spacing:-.04em;margin-top:5px;}
-  .flow .fs{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:3px;letter-spacing:-.03em;}
-  .base-block{padding:14px 15px;border-bottom:1px solid var(--line-2);}
-  .base-block:last-child{border-bottom:none;}
-  .base-head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:9px;}
-  .base-head .nm{font-size:13.5px;font-weight:600;letter-spacing:-.03em;}
-  .base-head .tot{font-family:var(--mono);font-size:16px;font-weight:700;letter-spacing:-.04em;}
-  .base-head .u{font-family:var(--kr);font-size:10.5px;color:var(--ink-3);margin-left:3px;font-weight:600;}
-  .comp{display:grid;grid-template-columns:3px 1fr auto;grid-template-areas:"b k v" "b s s";
-    gap:2px 10px;align-items:center;padding:6px 0;}
-  .cbar{grid-area:b;align-self:stretch;background:var(--paper);border-radius:99px;
-    overflow:hidden;position:relative;min-height:26px;}
-  .cbar i{position:absolute;top:0;left:0;width:100%;background:var(--road);border-radius:99px;}
-  .comp .ck{grid-area:k;font-size:12.5px;font-weight:600;color:var(--ink-2);letter-spacing:-.02em;}
-  .comp .cv{grid-area:v;font-family:var(--mono);font-size:12.5px;font-weight:700;letter-spacing:-.03em;}
-  .comp .cs{grid-area:s;font-size:10px;color:var(--ink-3);line-height:1.45;}
-  .comp.school .cbar i{background:var(--care);}
-  .comp .tag{font-size:9px;font-weight:700;background:var(--care-soft);color:var(--care-ink);
-    border-radius:5px;padding:1px 5px;margin-left:5px;vertical-align:1px;letter-spacing:0;}
+  /* ── 오늘 흐름 ── */
+  .flow{display:grid;grid-template-columns:1fr;}
+  .flow > div{padding:15px 16px;}
+  .flow .fk{font-size:11px;color:var(--ink-3);font-weight:600;display:flex;align-items:center;gap:6px;}
+  .flow .fk i{width:7px;height:7px;border-radius:50%;}
+  .flow .fv{font-size:20px;font-weight:800;letter-spacing:-.04em;margin-top:6px;}
+  .flow .fs{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:4px;letter-spacing:-.03em;}
 
   /* ── 날씨 ── */
   .title-right{display:flex;align-items:center;gap:8px;}
@@ -350,10 +343,6 @@ if(typeof L === 'undefined'){
     padding:11px 14px;font-size:12.5px;font-weight:600;margin-left:7px;}
   .status{font-size:12px;margin-top:9px;font-weight:600;padding:0 2px;}
   .status.ok{color:var(--safe-ink);} .status.err{color:var(--risk-ink);}
-  .disclose{width:100%;margin-top:24px;background:none;border:1px dashed var(--line);color:var(--ink-3);
-    border-radius:var(--r-md);padding:13px;font-size:12.5px;font-weight:600;
-    transition:background .16s, color .16s;}
-  .disclose:active{background:var(--card);color:var(--ink-2);}
   .linkbtn{background:none;border:none;color:var(--road);font-size:11.5px;font-weight:700;padding:0;
     text-decoration:underline;}
 
@@ -442,7 +431,12 @@ if(typeof L === 'undefined'){
       <h1>하양 안전알림</h1>
       <div class="where">경산시 하양읍 · <span id="dayLabel">-</span> <span id="clockText">--:--</span></div>
     </div>
-    <button class="live on" id="liveBtn"><span class="beat"></span><span id="liveText">지금 시각</span></button>
+    <div class="picker-wrap">
+      <button class="picker" id="poiBtn" aria-haspopup="true" aria-expanded="false">
+        <span id="poiText">하양역</span><span class="cv">▾</span>
+      </button>
+      <div class="pick-menu" id="poiMenu" role="menu"></div>
+    </div>
   </header>
 
   <main>
@@ -454,7 +448,7 @@ if(typeof L === 'undefined'){
       <div class="panel" id="signalPanel">
         <div class="panel-top">
           <span>하양읍 혼잡 신호판</span>
-          <span id="panelStamp">—</span>
+          <button id="panelStamp" class="stamp">—</button>
         </div>
         <div class="panel-body">
           <div class="lamps">
@@ -547,13 +541,6 @@ if(typeof L === 'undefined'){
       <div class="sec-title">오늘 자동 분석 <small id="autoStamp">—</small></div>
       <div class="card" id="autoCard"></div>
 
-      <div class="sec-title">조건이 만든 차이</div>
-      <div class="card places" id="deltaList"></div>
-
-      <div class="sec-title">기준값 (일 유동인구)</div>
-      <div class="card" id="baseList"></div>
-
-      <button class="disclose" id="manualToggle">조건 직접 바꿔보기 (시연·검증용)</button>
     </section>
 
     <!-- ══ 전달·안내 ══ -->
@@ -585,47 +572,6 @@ if(typeof L === 'undefined'){
   </nav>
 </div>
 
-
-<div class="sheet-back" id="sheetBack"></div>
-<div class="sheet" id="manualSheet" role="dialog" aria-label="조건 직접 조정">
-  <div class="sheet-grab"><i></i></div>
-  <div class="sheet-head">
-    <span class="t">조건 직접 조정</span>
-    <button class="sheet-x" id="sheetClose" aria-label="닫기">✕</button>
-  </div>
-  <div class="sheet-body" id="manualBox">
-      <div class="card">
-        <div class="factor">
-          <div class="lb">날씨</div>
-          <div class="ds">실제 예보 대신 고른 날씨로 계산합니다</div>
-          <div class="seg mini" data-factor="weather">
-            <button data-v="clear" class="on">맑음</button><button data-v="rain">비</button>
-            <button data-v="heat">폭염</button><button data-v="cold">한파</button>
-          </div>
-        </div>
-        <div class="factor">
-          <div class="lb">학사일정</div>
-          <div class="ds">캠퍼스 인구에 가장 크게 작용합니다</div>
-          <div class="seg mini" data-factor="academic">
-            <button data-v="normal" class="on">학기중</button><button data-v="exam">시험</button>
-            <button data-v="festival">축제</button><button data-v="vacation">방학</button>
-          </div>
-        </div>
-        <div class="set-row">
-          <div><div class="lb">버스 집중</div><div class="ds">여러 노선이 몰려 도착하는 시간대</div></div>
-          <button class="switch" id="swBus" aria-label="버스 집중"><i></i></button>
-        </div>
-        <div class="set-row">
-          <div><div class="lb">지역 행사</div><div class="ds">장날·축제 등 시장 일대 인구 증가</div></div>
-          <button class="switch" id="swEvent" aria-label="지역 행사"><i></i></button>
-        </div>
-        <div class="set-row">
-          <div><div class="lb">자동으로 되돌리기</div></div>
-          <button class="copy-btn" id="reautoBtn">되돌리기</button>
-        </div>
-      </div>
-      </div>
-</div>
 
 <div class="sheet-back" id="howtoBack"></div>
 <div class="sheet" id="howtoSheet" role="dialog" aria-label="연결이 안 되는 이유">
@@ -1322,18 +1268,6 @@ function runAutoAnalysis(){
   cond.academic = ac.v;
   cond.bus = rush;
   cond.event = market;
-  syncControls();
-}
-
-/* 자동 판정 결과를 수동 컨트롤 표시에도 반영 */
-function syncControls(){
-  document.querySelectorAll('.seg.mini').forEach(seg => {
-    seg.querySelectorAll('button').forEach(b =>
-      b.classList.toggle('on', b.dataset.v === cond[seg.dataset.factor]));
-  });
-  $('swBus').classList.toggle('on', cond.bus);
-  $('swEvent').classList.toggle('on', cond.event);
-
 }
 
 function buildAutoCard(){
@@ -1637,7 +1571,7 @@ function buildWxStrip(){
       /* 그날 날씨로 바꿔서 미리보기 — 오늘을 다시 누르면 자동으로 복귀 */
       wxPickedIdx = i;
       if(i === WX.todayIdx){ autoMode = true; runAutoAnalysis(); }
-      else { autoMode = false; cond.weather = wxToCond(d); syncControls(); }
+      else { autoMode = false; cond.weather = wxToCond(d); }
       buildWxStrip(); buildAutoCard(); render();
     });
     strip.appendChild(el);
@@ -1866,50 +1800,6 @@ function buildPlaces(container, hour){
       });
 }
 
-function buildDelta(){
-  const box = $('deltaList'); box.innerHTML = '';
-  POIS.forEach(poi => {
-    const before = peopleFor(poi, selectedHour, false);
-    const after  = peopleFor(poi, selectedHour, true);
-    const diff = Math.round((after/before - 1) * 100);
-    const row = document.createElement('div');
-    row.className = 'place'; row.style.gridTemplateColumns = '1fr auto';
-    row.innerHTML = `
-      <span>
-        <span class="nm">${poi.short}</span>
-        <span class="ppl">${fmt(before)} → ${fmt(after)}명/시간</span>
-      </span>
-      <span class="chip ${diff > 0 ? 'care' : (diff < 0 ? 'safe' : 'watch')}">${diff > 0 ? '+' : ''}${diff}%</span>`;
-    box.appendChild(row);
-  });
-}
-
-function buildBase(){
-  const box = $('baseList'); if(!box) return;
-  box.innerHTML = '';
-  POIS.forEach(poi => {
-    const comps = BASE_COMPONENTS[poi.id] || [];
-    const total = BASELINE[poi.id].daily;
-    const wrap = document.createElement('div');
-    wrap.className = 'base-block';
-    wrap.innerHTML = `
-      <div class="base-head">
-        <span class="nm">${poi.name}</span>
-        <span class="tot">${fmt(total)}<span class="u">명/일</span></span>
-      </div>
-      ${comps.map(c => `
-        <div class="comp${c.school ? ' school' : ''}">
-          <div class="cbar"><i style="width:${(c.v / total * 100).toFixed(1)}%"></i></div>
-          <div class="ck">${c.k}${c.school ? ' <span class="tag">등하교</span>' : ''}</div>
-          <div class="cv">${fmt(c.v)}</div>
-          <div class="cs">${c.s}</div>
-        </div>`).join('')}
-      ${comps.length ? '' : '<div class="comp"><div class="cs">직접 입력한 값입니다.</div></div>'}
-    `;
-    box.appendChild(wrap);
-  });
-}
-
 /* ── 메인 렌더 ── */
 function render(){
   if(autoMode) runAutoAnalysis();
@@ -1922,10 +1812,7 @@ function render(){
   $('hourSlider').value = selectedHour;
   $('scrubHourLabel').textContent = hourLabel(selectedHour);
   const todayDow = now.getDay();
-  /* 초록 = 지금 시각을 보고 있다는 표시 (그대로 유지) */
-  $('liveBtn').classList.toggle('on', liveMode && selectedDow === todayDow);
-  const rd = refDate();
-  $('liveText').textContent = `${rd.getDate()}일 ${DOW_KR[selectedDow]}요일`;
+  const isNow = liveMode && selectedDow === todayDow;
 
   const realHour = now.getHours();
   const selPoi = POIS.find(p => p.id === selectedPoiId);
@@ -1936,8 +1823,21 @@ function render(){
   $('heroPlace').textContent = selPoi.name;
   $('heroLine').textContent = lv.label;
   countUp($('heroPeople'), peopleFor(selPoi, selectedHour), '명 / 시간');
-  $('panelStamp').textContent = (liveMode ? '실시간' : '예측') + ' · '
-    + String(selectedHour).padStart(2,'0') + ':00';
+  /* 신호판 상단 — 지금이 아니면 눌러서 되돌릴 수 있습니다 */
+  const stamp = $('panelStamp');
+  stamp.textContent = isNow
+    ? '실시간 · ' + String(selectedHour).padStart(2,'0') + ':00'
+    : `${refDate().getDate()}일 ${DOW_KR[selectedDow]} ${String(selectedHour).padStart(2,'0')}:00 · 지금으로`;
+  stamp.classList.toggle('back', !isNow);
+
+  /* 장소 선택기 */
+  $('poiText').textContent = selPoi.short;
+  $('poiMenu').innerHTML = POIS.map(poi => {
+    const c = levelFor(congestionFor(poi, selectedHour));
+    return `<button data-poi="${poi.id}" class="${poi.id === selectedPoiId ? 'on' : ''}" role="menuitem">
+      <i class="lvdot" style="background:${c.color}"></i>${poi.short}
+      <span class="mnum">${fmt(peopleFor(poi, selectedHour))}명</span></button>`;
+  }).join('');
   $('heroSub').textContent = `${DOW_KR[selectedDow]}요일 · ${dayType === 'weekday' ? '평일' : '주말·휴일'} 통행 패턴`;
   const causes = activeCauses();
   $('heroCause').innerHTML = causes.length
@@ -1969,8 +1869,6 @@ function render(){
   $('nowListTitle').textContent = (liveMode ? '지금' : hourLabel(selectedHour)) + ' 혼잡한 곳';
   buildPlaces($('placesNow'), selectedHour);
   buildPlaces($('placesMap'), selectedHour);
-  buildDelta();
-  buildBase();
 
   /* 요일 버튼 */
   const dowBox = $('dayToggle');
@@ -2079,30 +1977,10 @@ $('dayToggle').addEventListener('click', e => {
   render();
 });
 
-document.querySelectorAll('.seg.mini').forEach(seg => {
-  seg.addEventListener('click', e => {
-    const btn = e.target.closest('button'); if(!btn) return;
-    cond[seg.dataset.factor] = btn.dataset.v;
-    seg.querySelectorAll('button').forEach(b => b.classList.toggle('on', b === btn));
-    autoMode = false; buildAutoCard();
-    render();
-  });
-});
-$('swBus').addEventListener('click', () => { cond.bus = !cond.bus; $('swBus').classList.toggle('on', cond.bus); autoMode = false; buildAutoCard(); render(); });
-$('swEvent').addEventListener('click', () => { cond.event = !cond.event; $('swEvent').classList.toggle('on', cond.event); autoMode = false; buildAutoCard(); render(); });
-
 let resizeTimer = null;
 window.addEventListener('resize', () => {
   clearTimeout(resizeTimer);
   resizeTimer = setTimeout(() => refreshMap(0), 200);
-});
-
-$('manualToggle').addEventListener('click', openSheet);
-$('reautoBtn').addEventListener('click', () => {
-  toast('자동 분석으로 되돌렸어요');
-  autoMode = true;
-  if(WX) wxPickedIdx = WX.todayIdx;
-  runAutoAnalysis(); buildWxStrip(); buildAutoCard(); render();
 });
 
 $('notifSwitch').addEventListener('click', async () => {
@@ -2122,8 +2000,36 @@ $('copyMsg').addEventListener('click', async () => {
 $('boardBtn').addEventListener('click', () => { updateBoard(); $('boardView').classList.add('on'); });
 $('boardClose').addEventListener('click', () => $('boardView').classList.remove('on'));
 
-$('liveBtn').addEventListener('click', () => {
-  liveMode = true; setDow(new Date().getDay()); autoMode = true; playing = false; clearInterval(playTimer); $('playBtn').textContent = '▶'; render();
+/* ── 장소 선택기 ── */
+function closePoiMenu(){
+  $('poiMenu').classList.remove('on');
+  $('poiBtn').classList.remove('open');
+  $('poiBtn').setAttribute('aria-expanded', 'false');
+}
+$('poiBtn').addEventListener('click', e => {
+  e.stopPropagation();
+  const open = $('poiMenu').classList.toggle('on');
+  $('poiBtn').classList.toggle('open', open);
+  $('poiBtn').setAttribute('aria-expanded', String(open));
+});
+$('poiMenu').addEventListener('click', e => {
+  const btn = e.target.closest('button'); if(!btn) return;
+  selectedPoiId = btn.dataset.poi;
+  closePoiMenu();
+  render();
+});
+document.addEventListener('click', e => {
+  if(!e.target.closest('.picker-wrap')) closePoiMenu();
+});
+document.addEventListener('keydown', e => { if(e.key === 'Escape') closePoiMenu(); });
+
+/* 지금으로 되돌리기 */
+$('panelStamp').addEventListener('click', () => {
+  if(liveMode && selectedDow === new Date().getDay()) return;
+  liveMode = true; setDow(new Date().getDay()); autoMode = true;
+  playing = false; clearInterval(playTimer); $('playBtn').textContent = '▶';
+  toast('지금 시각으로 돌아왔어요');
+  render();
 });
 $('hourSlider').addEventListener('input', e => {
   liveMode = false; playing = false; clearInterval(playTimer); $('playBtn').textContent = '▶';
@@ -2163,44 +2069,6 @@ function closeHowto(){
 }
 $('howtoBack').addEventListener('click', closeHowto);
 $('howtoClose').addEventListener('click', closeHowto);
-
-/* 바텀시트 */
-function openSheet(){
-  $('manualSheet').classList.add('on');
-  $('sheetBack').classList.add('on');
-  document.body.style.overflow = 'hidden';
-}
-function closeSheet(){
-  $('manualSheet').classList.remove('on');
-  $('sheetBack').classList.remove('on');
-  document.body.style.overflow = '';
-}
-$('sheetBack').addEventListener('click', closeSheet);
-$('sheetClose').addEventListener('click', closeSheet);
-document.addEventListener('keydown', e => { if(e.key === 'Escape'){ closeSheet(); closeHowto(); } });
-
-/* 시트를 아래로 끌어내리면 닫기 */
-(() => {
-  const sh = $('manualSheet'); let y0 = null, dy = 0;
-  const grab = sh.querySelector('.sheet-grab'), head = sh.querySelector('.sheet-head');
-  const start = e => { y0 = e.touches[0].clientY; dy = 0; sh.style.transition = 'none'; };
-  const move  = e => {
-    if(y0 === null) return;
-    dy = Math.max(0, e.touches[0].clientY - y0);
-    sh.style.transform = `translate(-50%, ${dy}px)`;
-  };
-  const end = () => {
-    if(y0 === null) return;
-    sh.style.transition = ''; sh.style.transform = '';
-    if(dy > 90) closeSheet();
-    y0 = null;
-  };
-  [grab, head].forEach(el => {
-    el.addEventListener('touchstart', start, {passive:true});
-    el.addEventListener('touchmove', move, {passive:true});
-    el.addEventListener('touchend', end);
-  });
-})();
 
 /* 상단바 축소 */
 let lastStuck = false;
@@ -2262,7 +2130,7 @@ function drawSpark(poi){
   const mark = ptr.querySelector('i');
   let y0 = null, pull = 0;
   window.addEventListener('touchstart', e => {
-    if(window.scrollY <= 0 && !$('manualSheet').classList.contains('on')) y0 = e.touches[0].clientY;
+    if(window.scrollY <= 0 && !$('howtoSheet').classList.contains('on')) y0 = e.touches[0].clientY;
   }, {passive:true});
   window.addEventListener('touchmove', e => {
     if(y0 === null) return;
