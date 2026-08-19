@@ -129,7 +129,7 @@ if(typeof L === 'undefined'){
 
   .lamps{background:#05090C;border-radius:15px;padding:9px 8px;display:flex;flex-direction:column;gap:7px;
     flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 2px 6px rgba(0,0,0,.4);}
-  .lamp{width:21px;height:21px;border-radius:50%;background:#1B252C;
+  .lamp{width:25px;height:25px;border-radius:50%;background:#1B252C;
     box-shadow:inset 0 1px 2px rgba(0,0,0,.7);
     transition:background .4s var(--ease), box-shadow .4s var(--ease), transform .4s var(--ease);}
   .lamp.lit.risk{background:var(--risk);box-shadow:0 0 0 3px rgba(224,52,39,.18),0 0 20px 2px rgba(224,52,39,.8);transform:scale(1.06);}
@@ -138,12 +138,12 @@ if(typeof L === 'undefined'){
   .lamp.lit.safe{background:var(--safe);box-shadow:0 0 0 3px rgba(0,160,90,.18),0 0 20px 2px rgba(0,160,90,.75);transform:scale(1.06);}
 
   .panel-copy{min-width:0;flex:1;}
-  .hero-place{font-size:12px;color:#8A99A2;font-weight:600;letter-spacing:-.01em;
+  .hero-place{font-size:14.5px;color:#9AA9B2;font-weight:600;letter-spacing:-.02em;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .hero-line{font-size:30px;font-weight:800;letter-spacing:-.045em;margin:2px 0 6px;line-height:1.06;color:#fff;}
+  .hero-line{font-size:40px;font-weight:800;letter-spacing:-.05em;margin:5px 0 9px;line-height:1.02;color:#fff;}
   .hero-num{font-family:var(--mono);font-variant-numeric:tabular-nums;
-    font-size:14px;font-weight:600;color:#C6D2D8;letter-spacing:-.02em;}
-  .hero-sub{font-size:11.5px;color:#7E8D96;margin-top:4px;line-height:1.5;}
+    font-size:18px;font-weight:700;color:#D8E2E8;letter-spacing:-.03em;}
+  .hero-sub{font-size:13.5px;color:#8E9DA6;margin-top:7px;line-height:1.5;}
   .hero-sub b{font-family:var(--mono);color:#C6D2D8;font-weight:600;}
 
   .cause{display:flex;gap:5px;flex-wrap:wrap;margin-top:11px;position:relative;}
@@ -173,11 +173,11 @@ if(typeof L === 'undefined'){
   .place.sel{background:#F6F8F7;}
   .place .rankno{width:21px;height:21px;border-radius:7px;background:var(--paper);color:var(--ink-3);
     font-family:var(--mono);font-size:11px;font-weight:700;display:grid;place-items:center;}
-  .place .nm{font-weight:600;letter-spacing:-.03em;font-size:14.5px;}
-  .place .ppl{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:3px;display:block;letter-spacing:-.02em;}
+  .place .nm{font-weight:600;letter-spacing:-.03em;font-size:16px;}
+  .place .ppl{font-family:var(--mono);font-size:12.5px;color:var(--ink-3);margin-top:4px;display:block;letter-spacing:-.02em;}
   .place .meter{height:5px;border-radius:99px;background:var(--paper);margin-top:7px;overflow:hidden;}
   .place .meter i{display:block;height:100%;border-radius:99px;transition:width .5s var(--ease);}
-  .chip{font-size:11px;font-weight:700;padding:5px 9px;border-radius:8px;white-space:nowrap;
+  .chip{font-size:12.5px;font-weight:700;padding:6px 11px;border-radius:9px;white-space:nowrap;
     display:flex;align-items:center;gap:5px;letter-spacing:-.01em;}
   .chip .pctnum{font-family:var(--mono);opacity:.72;font-weight:600;}
   .chip.safe{background:var(--safe-soft);color:var(--safe-ink);}
@@ -239,12 +239,25 @@ if(typeof L === 'undefined'){
 
   /* ── 시간대 표 ── */
   .hours{overflow:hidden;}
-  .hrow{display:grid;grid-template-columns:38px 1fr 40px 46px;gap:9px;align-items:center;
-    padding:6px 14px;border-bottom:1px solid var(--line-2);}
+  .hrow{display:grid;grid-template-columns:38px 1fr auto 40px 46px;gap:8px;align-items:center;
+    padding:7px 14px;border-bottom:1px solid var(--line-2);}
+  .hrow .tg{font-size:10px;font-weight:700;border-radius:5px;padding:2px 6px;letter-spacing:-.02em;
+    background:var(--paper);color:var(--ink-3);}
+  .hrow.future .tg{background:var(--road-soft);color:var(--road);}
+  .hrow.now .tg{background:var(--ink);color:#fff;}
+  .hrow.past{opacity:.55;}
+  .hrow.past .track i{opacity:.6;}
+  .hrow.future .track{background:repeating-linear-gradient(90deg,var(--paper) 0 5px,#fff 5px 7px);}
+  .hsep{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#F6F8FA;
+    border-bottom:1px solid var(--line-2);}
+  .hsep::before,.hsep::after{content:"";flex:1;height:1px;background:var(--line);}
+  .hsep span{font-size:11px;font-weight:700;color:var(--road);letter-spacing:-.02em;white-space:nowrap;}
   .hrow:last-child{border-bottom:none;}
-  .hrow.now{background:#F6F8F7;}
+  .hrow.now{background:#F1F5F3;}
+  .hrow.sel{background:#FAFBFA;}
   .hrow .hh{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:-.03em;}
   .hrow.now .hh{color:var(--ink);font-weight:700;}
+  .hrow.sel .hh{color:var(--ink-2);font-weight:600;}
   .hrow .track{height:9px;background:var(--paper);border-radius:99px;overflow:hidden;}
   .hrow .track i{display:block;height:100%;border-radius:99px;transition:width .45s var(--ease);}
   .hrow .val,.hrow .ppl{font-family:var(--mono);font-size:11px;color:var(--ink-2);text-align:right;letter-spacing:-.03em;}
@@ -277,9 +290,9 @@ if(typeof L === 'undefined'){
   /* ── 오늘 흐름 ── */
   .flow{display:grid;grid-template-columns:1fr;}
   .flow > div{padding:15px 16px;}
-  .flow .fk{font-size:11px;color:var(--ink-3);font-weight:600;display:flex;align-items:center;gap:6px;}
+  .flow .fk{font-size:12.5px;color:var(--ink-3);font-weight:600;display:flex;align-items:center;gap:6px;}
   .flow .fk i{width:7px;height:7px;border-radius:50%;}
-  .flow .fv{font-size:20px;font-weight:800;letter-spacing:-.04em;margin-top:6px;}
+  .flow .fv{font-size:24px;font-weight:800;letter-spacing:-.04em;margin-top:7px;}
   .flow .fs{font-family:var(--mono);font-size:11px;color:var(--ink-3);margin-top:4px;letter-spacing:-.03em;}
 
   /* ── 날씨 ── */
@@ -383,22 +396,6 @@ if(typeof L === 'undefined'){
   .ptr i{margin-top:6px;width:26px;height:26px;border-radius:50%;background:var(--card);
     border:1px solid var(--line);box-shadow:var(--sh-1);display:grid;place-items:center;
     font-size:12px;color:var(--ink-2);opacity:0;transform:scale(.7);transition:opacity .15s;}
-
-  /* ── 전광판 모드 ── */
-  .board{position:fixed;inset:0;background:#05090C;color:#fff;z-index:80;display:none;
-    flex-direction:column;justify-content:center;padding:8vh 7vw;}
-  .board::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
-    background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);background-size:5px 5px;}
-  .board.on{display:flex;}
-  .board .b-top{font-size:16px;letter-spacing:.1em;color:#7A8A95;font-weight:700;position:relative;}
-  .board .b-level{font-size:clamp(52px,16vw,120px);font-weight:800;letter-spacing:-.055em;line-height:1;
-    margin:16px 0 6px;display:flex;align-items:center;gap:22px;position:relative;}
-  .board .b-dot{width:.5em;height:.5em;border-radius:50%;box-shadow:0 0 50px currentColor;}
-  .board .b-line{font-size:clamp(16px,4.4vw,25px);font-weight:600;line-height:1.5;margin-top:18px;
-    color:#D5DEE3;position:relative;letter-spacing:-.03em;}
-  .board .b-sub{font-size:13px;color:#657580;margin-top:20px;line-height:1.7;position:relative;}
-  .board .b-close{position:absolute;top:calc(20px + env(safe-area-inset-top));right:20px;background:#18222A;
-    border:none;color:#8A99A2;border-radius:12px;padding:10px 15px;font-size:12.5px;font-weight:600;z-index:2;}
 
   /* ── 하단 탭 ── */
   .nav{position:fixed;bottom:0;width:100%;max-width:460px;height:calc(var(--nav-h) + env(safe-area-inset-bottom));
@@ -550,10 +547,6 @@ if(typeof L === 'undefined'){
         <div class="msg-head"><span class="lb">카카오 알림톡 · 문자 문안</span><button class="copy-btn" id="copyMsg">복사</button></div>
         <div class="msg-preview" id="msgPreview"></div>
         <div class="set-row">
-          <div><div class="lb">전광판 모드</div><div class="ds">정류장·학내 화면에 띄우는 전체화면</div></div>
-          <button class="copy-btn" id="boardBtn">열기</button>
-        </div>
-        <div class="set-row">
           <div><div class="lb">앱 푸시 알림</div><div class="ds">주의 단계 이상이 되면 알려드려요</div></div>
           <button class="switch" id="notifSwitch" aria-label="알림 켜기"><i></i></button>
         </div>
@@ -601,12 +594,7 @@ if(typeof L === 'undefined'){
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
-<div class="board" id="boardView">
-  <button class="b-close" id="boardClose">닫기</button>
-  <div class="b-top">하양읍 혼잡 신호판</div>
-  <div class="b-level" id="boardLevel"><span class="b-dot"></span><span>안전</span></div>
-  <div class="b-line" id="boardLine"></div>
-  <div class="b-sub" id="boardSub"></div>
+
 </div>
 
 <script>
@@ -1083,7 +1071,7 @@ const SENS = {
 };
 const FACTOR_LABEL = {
   rain:'비 예보', heat:'폭염', cold:'한파',
-  exam:'시험기간', festival:'축제', vacation:'방학',
+  exam:'시험기간', festival:'축제', vacation:'방학',   /* 앞에 '대학 '이 붙습니다 */
   bus:'버스 집중', event:'지역 행사'
 };
 
@@ -1140,14 +1128,20 @@ function weightFor(poiId){
 }
 function activeCauses(){
   const c = [];
+  /* 초·중·고와 대학은 일정이 서로 달라 따로 적습니다 */
   if(autoMode){
     const st = k12State(refDate());
-    if(st.examShare >= 0.3) c.push('학교 시험 (이른 하교)');
-    else if(st.festShare >= 0.3) c.push('학교 축제');
-    else if(st.scale < 0.9) c.push('학교 ' + st.label.split(' · ')[0]);
+    if(st.examShare >= 0.3)      c.push('초·중·고 시험 (이른 하교)');
+    else if(st.festShare >= 0.3) c.push('초·중·고 축제');
+    else if(st.scale < 0.9){
+      /* 통행이 줄어든 정도로 표현합니다 */
+      c.push('초·중·고 ' + (st.scale < 0.2 ? '방학'
+                          : st.scale < 0.6 ? '대부분 방학'
+                          : '일부 방학'));
+    }
   }
   if(cond.weather !== 'clear') c.push(FACTOR_LABEL[cond.weather]);
-  if(cond.academic !== 'normal') c.push(FACTOR_LABEL[cond.academic]);
+  if(cond.academic !== 'normal') c.push('대학 ' + FACTOR_LABEL[cond.academic]);
   if(cond.bus) c.push(FACTOR_LABEL.bus);
   if(cond.event) c.push(FACTOR_LABEL.event);
   return c;
@@ -1915,20 +1909,40 @@ function render(){
 
   /* 시간대 표 */
   const list = $('hoursList'); list.innerHTML = '';
+  /* 지금보다 뒤인 시간은 '예측'으로 구분합니다 */
+  const dayGap = Math.round(
+    (new Date(refDate().getFullYear(), refDate().getMonth(), refDate().getDate())
+     - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
+  let firstFuture = -1;
   for(let h = 0; h < 24; h++){
     const p = congestionFor(selPoi, h), l = levelFor(p);
+    const future = dayGap > 0 || (dayGap === 0 && h > now.getHours());
+    const past   = dayGap < 0 || (dayGap === 0 && h < now.getHours());
+    if(future && firstFuture < 0) firstFuture = h;
+
+    /* 예측 구간이 시작되는 자리에 구분선 */
+    if(future && firstFuture === h && h > 0){
+      const sep = document.createElement('div');
+      sep.className = 'hsep';
+      sep.innerHTML = '<span>여기부터 예측</span>';
+      list.appendChild(sep);
+    }
+    /* 검은 '지금'은 오늘의 현재 시각에만 — 다른 날·다른 시간은 표시하지 않습니다 */
+    const nowHour = dayGap === 0 && h === now.getHours();
     const row = document.createElement('div');
-    row.className = 'hrow' + (h === selectedHour ? ' now' : '');
+    row.className = 'hrow' + (nowHour ? ' now' : '')
+      + (!nowHour && h === selectedHour ? ' sel' : '')
+      + (future ? ' future' : '') + (past ? ' past' : '');
     row.innerHTML = `
       <div class="hh">${String(h).padStart(2,'0')}시</div>
       <div class="track"><i style="width:${Math.min(p,150)/1.5}%;background:${l.color}"></i></div>
+      <div class="tg">${future ? '예측' : (past ? '지남' : '지금')}</div>
       <div class="val">${p}%</div>
       <div class="ppl">${fmt(peopleFor(selPoi, h))}명</div>`;
     list.appendChild(row);
   }
 
   buildMessage();
-  updateBoard();
 }
 
 /* 오늘 하루 중 가장 붐비는 시간 */
@@ -1965,19 +1979,6 @@ ${String(realHour).padStart(2,'0')}:00~${String(endH).padStart(2,'0')}:00 ${top.
 ${(causes.length ? causes : ['시간대 통행 패턴']).map(c => '- ' + c).join('\n')}`;
   $('msgPreview').textContent = txt;
   return txt;
-}
-
-function updateBoard(){
-  const realHour = new Date().getHours();
-  const top = POIS.map(poi => ({poi, pct:congestionFor(poi, realHour)})).sort((a,b) => b.pct - a.pct)[0];
-  const l = levelFor(top.pct);
-  const lvEl = $('boardLevel');
-  lvEl.querySelector('.b-dot').style.background = l.color;
-  lvEl.querySelector('.b-dot').style.color = l.color;
-  lvEl.querySelector('span:last-child').textContent = l.label;
-  $('boardLine').textContent = `${top.poi.name} · 약 ${fmt(peopleFor(top.poi, realHour))}명/시간`;
-  const causes = activeCauses();
-  $('boardSub').textContent = `${String(realHour).padStart(2,'0')}시 기준 · ${causes.length ? '원인: ' + causes.join(', ') : '특이 조건 없음'}`;
 }
 
 function fireNotification(poi, pct){
@@ -2017,9 +2018,6 @@ $('copyMsg').addEventListener('click', async () => {
   try{ await navigator.clipboard.writeText(buildMessage()); toast('문안을 복사했어요'); }
   catch(e){ toast('복사하지 못했어요'); }
 });
-
-$('boardBtn').addEventListener('click', () => { updateBoard(); $('boardView').classList.add('on'); });
-$('boardClose').addEventListener('click', () => $('boardView').classList.remove('on'));
 
 /* ── 장소 선택기 ── */
 function closePoiMenu(){
