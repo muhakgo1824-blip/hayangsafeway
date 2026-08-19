@@ -64,9 +64,9 @@ if(typeof L === 'undefined'){
     display:flex;align-items:center;justify-content:space-between;gap:12px;
     border-bottom:1px solid transparent;transition:border-color .2s, padding .22s var(--ease);}
   .appbar.stuck{border-bottom-color:var(--line);padding-top:calc(8px + env(safe-area-inset-top));padding-bottom:8px;}
-  .appbar h1{font-size:17.5px;font-weight:700;margin:0;letter-spacing:-.035em;transition:font-size .22s var(--ease);}
-  .appbar.stuck h1{font-size:15.5px;}
-  .appbar .where{font-size:11.5px;color:var(--ink-3);margin-top:2px;letter-spacing:-.01em;
+  .appbar h1{font-size:22px;font-weight:800;margin:0;letter-spacing:-.04em;transition:font-size .22s var(--ease);}
+  .appbar.stuck h1{font-size:18px;}
+  .appbar .where{font-size:12.5px;color:var(--ink-3);margin-top:3px;letter-spacing:-.01em;
     max-height:20px;overflow:hidden;transition:max-height .22s var(--ease), opacity .18s;}
   .appbar.stuck .where{max-height:0;opacity:0;}
   .picker-wrap{position:relative;flex-shrink:0;}
@@ -104,10 +104,10 @@ if(typeof L === 'undefined'){
   @keyframes slidein{from{opacity:0;transform:translate3d(0,10px,0);}to{opacity:1;transform:none;}}
 
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-1);}
-  .sec-title{font-size:12px;font-weight:700;color:var(--ink-2);margin:26px 4px 9px;
+  .sec-title{font-size:15.5px;font-weight:700;color:var(--ink);margin:28px 4px 11px;
     display:flex;justify-content:space-between;align-items:center;gap:10px;
-    letter-spacing:.02em;text-transform:none;}
-  .sec-title small{font-weight:600;color:var(--ink-3);font-size:11px;}
+    letter-spacing:-.03em;text-transform:none;}
+  .sec-title small{font-weight:600;color:var(--ink-3);font-size:12px;letter-spacing:-.02em;}
   .screen > .sec-title:first-child{margin-top:2px;}
 
   /* ══ 신호판 (이 앱의 얼굴) ══ */
@@ -121,9 +121,9 @@ if(typeof L === 'undefined'){
     background-image:radial-gradient(rgba(255,255,255,.055) 1px, transparent 1px);
     background-size:4px 4px;}
   .panel-top{display:flex;align-items:center;justify-content:space-between;gap:10px;
-    font-size:11px;letter-spacing:.14em;color:#75858F;font-weight:600;position:relative;}
-  .stamp{background:none;border:none;color:#75858F;font-size:11px;font-weight:600;letter-spacing:.14em;
-    padding:3px 0 3px 8px;font-family:inherit;}
+    font-size:14px;letter-spacing:.04em;color:#8D9CA6;font-weight:700;position:relative;}
+  .stamp{background:none;border:none;color:#75858F;font-size:11.5px;font-weight:600;letter-spacing:.04em;
+    padding:3px 0 3px 8px;font-family:inherit;flex-shrink:0;}
   .stamp.back{color:#A9B7C0;text-decoration:underline;text-underline-offset:3px;}
   .panel-body{display:flex;gap:16px;align-items:center;margin-top:13px;position:relative;}
 
@@ -390,7 +390,7 @@ if(typeof L === 'undefined'){
   .board::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
     background-image:radial-gradient(rgba(255,255,255,.05) 1px, transparent 1px);background-size:5px 5px;}
   .board.on{display:flex;}
-  .board .b-top{font-size:13px;letter-spacing:.28em;color:#657580;font-weight:700;position:relative;}
+  .board .b-top{font-size:16px;letter-spacing:.1em;color:#7A8A95;font-weight:700;position:relative;}
   .board .b-level{font-size:clamp(52px,16vw,120px);font-weight:800;letter-spacing:-.055em;line-height:1;
     margin:16px 0 6px;display:flex;align-items:center;gap:22px;position:relative;}
   .board .b-dot{width:.5em;height:.5em;border-radius:50%;box-shadow:0 0 50px currentColor;}
@@ -646,21 +646,30 @@ const POIS_BASE = [
    기준 상황 = 학기중 · 평일 · 맑음 · 장날 아님
    ───────────────────────────────────────────── */
 const BASE_COMPONENTS = {
+  /* ── 하양역 · 대경로 ──
+     기준점: NICE bizmap 금락리 116-239 유동인구 1,486명/일 (등급 높음2).
+     대경선 하양역은 2024년 12월 개통 → bizmap 값은 개통 전 지상 보행량으로 보고,
+     철도 승하차를 그 위에 더합니다. 1,486을 통학/그 외로 나눈 비율(4:6)은 추정입니다. */
   station: [
-    { k:'철도 승하차',      v:2030, s:'하양역 연간 이용객 약 74만명 ÷ 365일' },
-    { k:'버스 환승·정류장',  v:1100, s:'대학 통학 노선이 몰리는 환승 거점' },
-    { k:'대경로 상가 보행',  v: 720, s:'NICE bizmap 금락리 116-239 구간(1,486명) 참고' },
-    { k:'초·중·고 통학',    v: 900, s:'학생·교직원 3,029명 중 역 일대를 지나는 통행', school:true }
+    { k:'철도 승하차',      v:2030, s:'하양역 연간 약 74만명 ÷ 365일 (개통 후)' },
+    { k:'대경로 지상 보행',  v: 886, s:'bizmap 1,486명 중 통학 외 (상가·버스·주민)' },
+    { k:'초·중·고 통학',    v: 600, s:'bizmap 1,486명 중 통학 몫 40% 추정', school:true }
   ],
+  /* ── 하양전통시장 일대 ──
+     ⚠️ bizmap 미조회. 하양역 대비 규모로 잡은 추정치입니다.
+     시장 구간을 bizmap에서 조회하면 이 값을 바로 교체할 수 있습니다. */
   market: [
-    { k:'시장 이용객',      v:1250, s:'상설 점포 이용 추정' },
-    { k:'인근 주민 통행',    v: 850, s:'하양읍 주거인구 32,596명 중 일부' },
-    { k:'하교 동선',        v: 450, s:'무학중·고·하양여고 하교 후 시장 일대 통행', school:true }
+    { k:'시장 일대 통행',    v:1400, s:'⚠️ 추정 — bizmap 시장 구간 조회 필요' },
+    { k:'하교 동선',        v: 250, s:'중·고생 2,203명 중 시장 경유분 추정', school:true }
   ],
+  /* ── 대구가톨릭대 정문 일대 ──
+     학부생 11,737명(효성캠퍼스 약 11,000) − 기숙사 2,807명 = 통학생 8,200명 기준.
+     등교율 70%·정문 이용률 55%는 추정입니다. */
   university: [
-    { k:'학생 등교',        v:5800, s:'재학생 약 1만명 × 학기중 등교율 58%' },
-    { k:'교직원',          v: 620, s:'전임교원·직원 추정' },
-    { k:'방문·업무',        v: 380, s:'외부 방문객, 배달·업무 통행' }
+    { k:'통학생 등하교',    v:6310, s:'통학생 8,200명 × 등교율 70% × 왕복 × 정문 55%' },
+    { k:'기숙사생 외출',    v:1570, s:'기숙사 2,807명 × 외출 0.7회 × 왕복 × 정문 40%' },
+    { k:'교직원',          v:1080, s:'교직원 약 900명 × 왕복 × 정문 60%' },
+    { k:'방문·업무',        v: 480, s:'외부 방문객, 배달·업무 통행' }
   ]
 };
 
@@ -695,10 +704,18 @@ const MONTH_RAW = [0.88, 0.90, 1.05, 1.09, 1.10, 1.01, 0.94, 0.92, 1.06, 1.10, 1
 const MONTH_SENS = { station:0.45, market:1.00, university:0.20 };
 
 /* 날씨 민감도 — 켜고 끄는 게 아니라 강수량·기온에 따라 연속으로 변합니다 */
+/* 날씨 민감도
+   heat: 2026년 폭염 보도 기준 — 전통시장 매출 20~50% 감소
+         (광주 대인시장 20%, 인천 부평깡시장·청량리 수산시장 절반)
+         전국 전통시장 1,403곳 중 냉방시설 보유는 405곳(29%)뿐이라 야외 상권 타격이 큼
+   rain·cold: 직접 조사 자료를 찾지 못했습니다. 추정치입니다. */
 const WX_SENS = {
-  rain: { station:-0.10, market:-0.55, university:-0.18 },   /* 20mm에서 최대 */
-  heat: { station:-0.06, market:-0.28, university:-0.10 },   /* 31°→37° 구간 */
-  cold: { station:-0.05, market:-0.30, university:-0.08 }    /* 0°→-8° 구간 */
+  /* rain: 전통시장 상인 증언 — 비 오는 날 손님 기본 30% 감소,
+     실외 위주 시장은 장마철 "절반도 못 판다" 수준.
+     적은 비에도 바로 효과가 나도록 제곱근 곡선을 씁니다. */
+  rain: { station:-0.10, market:-0.50, university:-0.18 },   /* 20mm에서 최대 */
+  heat: { station:-0.08, market:-0.45, university:-0.12 },   /* 보도 기반 · 31°→40° 구간 */
+  cold: { station:-0.05, market:-0.30, university:-0.08 }    /* ⚠️ 추정 · 0°→-8° 구간 */
 };
 
 function monthFactor(poiId, date){
@@ -716,8 +733,8 @@ function weatherFactorAuto(poiId){
   const prcp = (n && n.precipitation > 0) ? n.precipitation * 8 : d.prcp;
   const t = n ? n.temperature_2m : (d.tmax + d.tmin) / 2;
 
-  const rain = Math.min(1, prcp / 20);
-  const heat = Math.max(0, Math.min(1, (t - 31) / 6));
+  const rain = Math.min(1, Math.sqrt(prcp / 20));   /* 5mm에 이미 절반 효과 */
+  const heat = Math.max(0, Math.min(1, (t - 31) / 9));   /* 31°→40° */
   const cold = Math.max(0, Math.min(1, (0 - t) / 8));
 
   return (1 + WX_SENS.rain[poiId] * rain)
@@ -732,13 +749,14 @@ function weatherFactorAuto(poiId){
    나머지는 학급 규모로 잡은 추정치 → 학교알리미에서 확인 후 교체
    ───────────────────────────────────────────── */
 const K12_SCHOOLS = [
-  { name:'무학고',   lv:'고', students:605, staff:54, cal:'muhakH',  src:'확인' },
-  { name:'무학중',   lv:'중', students:700, staff:50, cal:'muhakM',  src:'확인' },
-  { name:'하양여고', lv:'고', students:300, staff:32, cal:'hayangG', src:'확인' },
-  { name:'하양여중', lv:'중', students:250, staff:26, cal:'hayangM', src:'확인' },
-  { name:'금락초',   lv:'초', students:600, staff:40, cal:'geumrakE', src:'확인' },
-  { name:'하양초',   lv:'초', students:450, staff:32, cal:'hayangE', src:'확인' },
-  { name:'하주초',   lv:'초', students:150, staff:16, cal:'hajuE',   src:'확인' }
+  /* 학생수·교원수: 학교알리미(schoolinfo.go.kr) 공시값 */
+  { name:'무학고',   lv:'고', students:605, staff:54, cal:'muhakH',   src:'확인' },
+  { name:'무학중',   lv:'중', students:629, staff:49, cal:'muhakM',   src:'확인' },
+  { name:'하양여고', lv:'고', students:497, staff:46, cal:'hayangG',  src:'확인' },
+  { name:'하양여중', lv:'중', students:472, staff:36, cal:'hayangM',  src:'확인' },
+  { name:'금락초',   lv:'초', students:242, staff:27, cal:'geumrakE', src:'확인' },
+  { name:'하양초',   lv:'초', students:518, staff:43, cal:'hayangE',  src:'확인' },
+  { name:'하주초',   lv:'초', students:699, staff:46, cal:'hajuE',    src:'확인' }
 ];
 const K12_TOTAL = K12_SCHOOLS.reduce((a, s) => a + s.students + s.staff, 0);
 
@@ -1058,7 +1076,10 @@ const SENS = {
     vacation:{station:0.75, market:0.95, university:0.45}
   },
   bus:  {station:1.12, market:1.02, university:1.08},
-  event:{station:1.08, market:2.20, university:1.00}   /* 하양장(끝자리 4·9일) */
+  /* 하양장(끝자리 4·9일) — 대구 신매시장 사례: 장날 방문객이 평일의 3~5배.
+     '시장 일대 통행 1,400'에는 시장 손님(약 900)과 주민 통행(약 500)이 섞여 있어
+     손님 몫만 4배 적용 → (3,600 + 550 + 250) / 1,650 ≈ 2.6배 */
+  event:{station:1.08, market:2.60, university:1.00}
 };
 const FACTOR_LABEL = {
   rain:'비 예보', heat:'폭염', cold:'한파',
