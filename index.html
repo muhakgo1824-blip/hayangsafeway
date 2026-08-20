@@ -713,13 +713,24 @@ function monthFactor(poiId, date){
 function dowFactor(poiId, date){
   return DOW_INDEX[poiId][date.getDay()];
 }
-function weatherFactorAuto(poiId){
+/* 그 시각의 날씨 — 시간별 자료가 있으면 그걸, 없으면 하루 값을 씁니다 */
+/* 보고 있는 날짜의 해당 시각 날씨 */
+function wxAtHour(hour, date){
+  if(!WX) return null;
+  const d0 = date || refDate();
+  const key = iso(d0) + 'T' + String(hour).padStart(2,'0');
+  if(WX.hourly && WX.hourly[key]) return WX.hourly[key];
+  const d = WX.days && WX.days[WX.todayIdx];
+  return d ? { code:d.code, temp:(d.tmax + d.tmin) / 2, prcp:d.prcp / 8,
+               hum:70, feel:(d.tmax + d.tmin) / 2, wind:2 } : null;
+}
+
+function weatherFactorAuto(poiId, hour){
   if(!WX) return 1;
-  const d = WX.days[WX.todayIdx], n = WX.now;
-  if(!d) return 1;
-  /* 지금 내리는 비가 있으면 그 강도를, 없으면 그날 예보 강수량을 씁니다 */
-  const prcp = (n && n.precipitation > 0) ? n.precipitation * 8 : d.prcp;
-  const t = n ? n.temperature_2m : (d.tmax + d.tmin) / 2;
+  const h = wxAtHour(hour === undefined ? selectedHour : hour);
+  if(!h) return 1;
+  const prcp = h.prcp * 8;   /* 시간당 강수를 하루 환산 눈금에 맞춤 */
+  const t = h.temp;
 
   const rain = Math.min(1, Math.sqrt(prcp / 20));   /* 5mm에 이미 절반 효과 */
   const heat = Math.max(0, Math.min(1, (t - 31) / 9));   /* 31°→40° */
@@ -1108,12 +1119,12 @@ const $ = id => document.getElementById(id);
 const fmt = n => Math.round(n).toLocaleString('ko-KR');
 
 function normalize(arr){ const avg = arr.reduce((a,b)=>a+b,0)/arr.length; return arr.map(v=>v/avg); }
-function weightFor(poiId){
+function weightFor(poiId, hour){
   const ref = refDate();
   let w;
   if(autoMode){
     /* 자동: 날씨는 강수량·기온에 따라 연속으로, 요일·계절도 함께 반영 */
-    w = weatherFactorAuto(poiId)
+    w = weatherFactorAuto(poiId, hour)
       * SENS.academic[cond.academic][poiId]
       * monthFactor(poiId, ref)
       * dowFactor(poiId, ref);
@@ -1158,7 +1169,7 @@ function peopleFor(poi, hour, withCond = true){
   const sd = SCHOOL_DAILY[poi.id] || 0;
   const other = total - sd;
   const curve = normalize(poi[dayType])[hour] / 24;
-  const w = withCond ? weightFor(poi.id) : 1;
+  const w = withCond ? weightFor(poi.id, hour) : 1;
   const k = withCond ? k12Active() : 1;
   const sc = withCond ? schoolCurve()[hour] : SCHOOL_CURVES.class[hour];
   return (other * curve + sd * sc * k) * w;
@@ -1265,16 +1276,19 @@ function runAutoAnalysis(){
   const rush = isRushHour(ref, hour);
 
   const wxDay = WX ? WX.days[WX.todayIdx] : null;
-  const wxCond = wxDay ? wxToCond(wxDay) : 'clear';
+  const wxHr  = wxAtHour(hour);
+  const wxCond = wxHr ? wxToCond({ code:wxHr.code, prcp:wxHr.prcp * 8, tmax:wxHr.temp, tmin:wxHr.temp })
+               : (wxDay ? wxToCond(wxDay) : 'clear');
 
   autoInfo = {
     weekend, academic:ac, market, rush, hour,
     weather:wxCond,
-    weatherDesc: wxDay
-      ? `${WX_COND_LABEL[wxCond]}`
-        + (WX && WX.now ? ` · 현재 ${Math.round(WX.now.temperature_2m)}° · 습도 ${Math.round(WX.now.relative_humidity_2m)}%` : '')
-        + ` · 오늘 ${Math.round(wxDay.tmax)}° / ${Math.round(wxDay.tmin)}°`
-        + (wxDay.prcp > 0 ? ` · 강수 ${wxDay.prcp.toFixed(1)}mm` : '')
+    /* 보고 있는 시각의 날씨로 설명합니다 (하루 대표값 아님) */
+    weatherDesc: wxHr
+      ? `${String(hour).padStart(2,'0')}시 ${wxDesc(wxHr.code)}`
+        + ` · ${Math.round(wxHr.temp)}°`
+        + (wxHr.hum != null ? ` · 습도 ${Math.round(wxHr.hum)}%` : '')
+        + (wxHr.prcp > 0 ? ` · 시간당 ${wxHr.prcp.toFixed(1)}mm` : '')
       : '예보를 불러오는 중'
   };
 
@@ -1331,8 +1345,8 @@ function buildAutoCard(){
 const HAYANG_LATLNG = { lat:35.9123, lng:128.8154 };   /* 세 지점의 중심 */
 const WX_URL = 'https://api.open-meteo.com/v1/forecast'
   + '?latitude=' + HAYANG_LATLNG.lat + '&longitude=' + HAYANG_LATLNG.lng
-  + '&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code'
   + '&current=temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,weather_code,wind_speed_10m'
+  + '&hourly=weather_code,temperature_2m,relative_humidity_2m,apparent_temperature,precipitation,wind_speed_10m'
   + '&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_sum'
   + '&past_days=7&forecast_days=8&timezone=Asia%2FSeoul';
 
@@ -1409,22 +1423,61 @@ function buildClimateFallback(){
     : 1 - (((hr - 15) + 24) % 24) / 14;           /* 오후~새벽: 하강 */
   const nowTemp = t.tmin + (t.tmax - t.tmin) * Math.max(0, Math.min(1, f));
   const nowHum  = Math.min(95, Math.max(25, CLIMATE.hum[m] - (nowTemp - (t.tmax + t.tmin) / 2) * 2.2));
+  /* 비 오는 날이라도 하루 종일 내리진 않습니다.
+     내리는 시간대를 날짜로 고정해 두면 새로고침해도 값이 흔들리지 않습니다. */
+  const rainFrom = 8 + Math.floor(seeded(t.date + 'r') * 10);   /* 08~17시 사이 시작 */
+  const rainLen  = 3 + Math.floor(seeded(t.date + 'l') * 5);    /* 3~7시간 지속 */
+  const raining  = t.prcp > 0 && hr >= rainFrom && hr < rainFrom + rainLen;
   const t0 = days[7];
+  /* 시간별 — 15일 전부, 하루 기온 곡선(새벽 최저·오후 3시 최고)을 따라 만듭니다 */
+  const hourly = {};
+  days.forEach(d => {
+    const m = new Date(d.date + 'T00:00:00').getMonth();
+    for(let h = 0; h < 24; h++){
+      const f = (h >= 5 && h <= 15) ? (h - 5) / 10 : 1 - (((h - 15) + 24) % 24) / 14;
+      const tp = d.tmin + (d.tmax - d.tmin) * Math.max(0, Math.min(1, f));
+      const wet = d.prcp > 0 && h >= 13 && h <= 20;   /* 비는 오후~저녁에 몰아 줍니다 */
+      const hu = Math.round(Math.min(95, Math.max(25,
+                   CLIMATE.hum[m] - (tp - (d.tmax + d.tmin) / 2) * 2.2)));
+      hourly[d.date + 'T' + String(h).padStart(2,'0')] = {
+        code: wet ? d.code : (d.code >= 51 ? 3 : d.code),
+        temp: +tp.toFixed(1),
+        prcp: wet ? +(d.prcp / 8).toFixed(1) : 0,
+        hum: hu,
+        feel: +(tp + Math.max(0, (tp - 20) / 10) * (hu - 60) / 10).toFixed(1),
+        wind: 2.0
+      };
+    }
+  });
   return {
+    hourly,
     fromSnapshot: !!(t0 && t0.real),
     now: {
       temperature_2m: +nowTemp.toFixed(1),
       relative_humidity_2m: Math.round(nowHum),
       /* 체감온도: 기상청 기준 — 습도 10%p 오를 때마다 약 1도 상승 (기온이 높을수록 크게 작용) */
       apparent_temperature: +(nowTemp + Math.max(0, (nowTemp - 20) / 10) * (nowHum - 60) / 10).toFixed(1),
-      precipitation: t.prcp > 0 ? +(t.prcp / 8).toFixed(1) : 0,
-      weather_code: t.code,
+      precipitation: raining ? +(t.prcp / rainLen).toFixed(1) : 0,
+      /* 지금 안 내리는 중이면 흐림으로 */
+      weather_code: raining ? t.code : (t.prcp > 0 ? 3 : t.code),
       wind_speed_10m: +(1.6 + seeded(t.date + 'w') * 1.8).toFixed(1)
     },
     days, todayIdx
   };
 }
 let wxPickedIdx = null;     /* 사용자가 고른 날짜 */
+
+/* 지금 보고 있는 시각의 날씨 — 실시간이면 현재 관측값 */
+function wxViewing(){
+  const now = new Date();
+  if(liveMode && selectedDow === now.getDay() && WX && WX.now){
+    return { code:WX.now.weather_code, temp:WX.now.temperature_2m,
+             hum:WX.now.relative_humidity_2m, feel:WX.now.apparent_temperature,
+             prcp:WX.now.precipitation, wind:WX.now.wind_speed_10m, live:true };
+  }
+  const h = wxAtHour(selectedHour);
+  return h ? Object.assign({}, h, {live:false}) : null;
+}
 
 /* 날씨코드 → 아이콘 */
 function wxIcon(code, prcp){
@@ -1474,7 +1527,22 @@ async function loadWeather(manual){
     const j = await res.json();
     const d = j.daily;
     const todayStr = new Date().toLocaleDateString('sv-SE');
+    /* 시간별 예보를 'YYYY-MM-DDTHH' 키로 정리해 둡니다 */
+    const hourly = {};
+    if(j.hourly && j.hourly.time){
+      j.hourly.time.forEach((t, i) => {
+        hourly[t.slice(0, 13)] = {
+          code: j.hourly.weather_code[i],
+          temp: j.hourly.temperature_2m[i],
+          hum:  j.hourly.relative_humidity_2m[i],
+          feel: j.hourly.apparent_temperature[i],
+          prcp: j.hourly.precipitation[i],
+          wind: j.hourly.wind_speed_10m[i]
+        };
+      });
+    }
     WX = {
+      hourly,
       now: j.current || null,
       days: d.time.map((t, i) => ({
         date: t, code: d.weather_code[i],
@@ -1489,7 +1557,7 @@ async function loadWeather(manual){
     note.hidden = true;
     runAutoAnalysis();
     buildWxNow();
-    buildWxStrip();
+    buildWxHourStrip();
     render();
   }catch(err){
     /* 실패하면 평년값으로 화면을 채우고, 곧바로 다시 시도합니다 */
@@ -1499,7 +1567,7 @@ async function loadWeather(manual){
       wxPickedIdx = WX.todayIdx;
       runAutoAnalysis();
       buildWxNow();
-      buildWxStrip();
+      buildWxHourStrip();
       render();
     }
     note.hidden = false;
@@ -1536,62 +1604,83 @@ function updateWxStamp(){
   }
 }
 
+/* 보고 있는 날짜·시각의 날씨.
+   시간별 예보가 있으면 그 값을, 없으면 그날 값으로 기온 곡선을 만들어 씁니다. */
+function wxAt(date, hour){
+  if(!WX) return null;
+  const key = date.toLocaleDateString('sv-SE') + 'T' + String(hour).padStart(2,'0');
+  if(WX.hourly && WX.hourly[key]) return { ...WX.hourly[key], live:false };
+
+  const ds = date.toLocaleDateString('sv-SE');
+  const d = WX.days.find(x => x.date === ds);
+  if(!d) return null;
+  /* 새벽 5시 최저 → 오후 3시 최고 */
+  const f = (hour >= 5 && hour <= 15) ? (hour - 5) / 10 : 1 - (((hour - 15) + 24) % 24) / 14;
+  const t = d.tmin + (d.tmax - d.tmin) * Math.max(0, Math.min(1, f));
+  const hum = Math.min(95, Math.max(25, 70 - (t - (d.tmax + d.tmin) / 2) * 2.2));
+  return {
+    code: d.code, temp:+t.toFixed(1), hum:Math.round(hum),
+    feel: +(t + Math.max(0, (t - 20) / 10) * (hum - 60) / 10).toFixed(1),
+    prcp: d.prcp > 0 ? +(d.prcp / 10).toFixed(1) : 0,
+    wind: 2.0, live:false
+  };
+}
+
 function buildWxNow(){
-  if(!WX || !WX.now) return;
+  const n = wxViewing();
+  if(!n) return;
   ['wxNowTemp','wxNowHum','wxNowFeel','wxNowWind'].forEach(i => {
     const e = $(i); if(e) e.classList.remove('sk');
   });
-  const n = WX.now;
-  $('wxNowIc').textContent   = wxIcon(n.weather_code, n.precipitation);
-  $('wxNowTemp').textContent = Math.round(n.temperature_2m);
-  $('wxNowHum').textContent  = Math.round(n.relative_humidity_2m) + '%';
-  $('wxNowFeel').textContent = Math.round(n.apparent_temperature) + '°';
-  $('wxNowWind').textContent = n.wind_speed_10m.toFixed(1) + 'm/s';
-  const d = WX.days[WX.todayIdx];
+  $('wxNowIc').textContent   = wxIcon(n.code, n.prcp);
+  $('wxNowTemp').textContent = Math.round(n.temp);
+  $('wxNowHum').textContent  = Math.round(n.hum) + '%';
+  $('wxNowFeel').textContent = Math.round(n.feel) + '°';
+  $('wxNowWind').textContent = (n.wind || 0).toFixed(1) + 'm/s';
+
   const hhmm = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit', hour12:false});
-  $('wxNowSub').textContent = wxDesc(n.weather_code)
-    + (wxSource === 'live' ? ` · ${hhmm} 기준`
-       : wxSource === 'snapshot' ? ' · 기상청 예보' : ' · 평년값 추정')
-    + (d ? ` · 오늘 ${Math.round(d.tmax)}° / ${Math.round(d.tmin)}°` : '')
-    + (n.precipitation > 0 ? ` · 강수 ${n.precipitation}mm` : '');
+  const when = n.live
+    ? (wxSource === 'live' ? `${hhmm} 실황` : `${hhmm} 기준`)
+    : `${refDate().getDate()}일 ${DOW_KR[selectedDow]} ${String(selectedHour).padStart(2,'0')}시`;
+  const d = WX.days[WX.todayIdx];
+  $('wxNowSub').textContent = wxDesc(n.code) + ' · ' + when
+    + (wxSource === 'snapshot' ? ' · 기상청 예보' : wxSource === 'normal' ? ' · 평년값 추정' : '')
+    + (n.prcp > 0 ? ` · 강수 ${n.prcp}mm` : '');
 }
 
-/* 가로 스트립을 오늘 날짜가 보이는 위치로 옮깁니다 */
-function scrollWxToToday(){
+/* 선택한 날의 24시간 날씨 */
+function buildWxHourStrip(){
   const strip = $('wxStrip'); if(!strip || !WX) return;
-  const idx = (wxPickedIdx !== null && wxPickedIdx !== undefined) ? wxPickedIdx : WX.todayIdx;
-  const el = strip.children[idx]; if(!el) return;
-  if(strip.clientWidth === 0){ setTimeout(scrollWxToToday, 200); return; }
-  strip.scrollLeft = Math.max(0, el.offsetLeft - strip.clientWidth / 2 + el.offsetWidth / 2);
-}
-
-function buildWxStrip(){
-  const strip = $('wxStrip'); if(!strip || !WX) return;
+  const now = new Date();
+  const isToday = selectedDow === now.getDay();
   strip.innerHTML = '';
-  WX.days.forEach((d, i) => {
-    const dt = new Date(d.date + 'T00:00:00');
-    const c = wxToCond(d);
+  for(let h = 0; h < 24; h++){
+    const w = wxAtHour(h);
+    if(!w) continue;
+    const c = wxToCond({ prcp:w.prcp * 8, code:w.code, tmax:w.temp, tmin:w.temp });
     const el = document.createElement('button');
     el.className = 'wx-day'
-      + (i < WX.todayIdx ? ' past' : '')
-      + (i === WX.todayIdx ? ' today' : '')
-      + (i === wxPickedIdx ? ' sel' : '');
+      + (isToday && h < now.getHours() ? ' past' : '')
+      + (h === selectedHour ? ' sel' : '')
+      + (isToday && h === now.getHours() ? ' today' : '');
     el.innerHTML = `
-      <div class="d">${i === WX.todayIdx ? '오늘' : dt.toLocaleDateString('ko-KR',{month:'numeric',day:'numeric'})}</div>
-      <div class="ic">${wxIcon(d.code, d.prcp)}</div>
-      <div class="t">${Math.round(d.tmax)}°<i> ${Math.round(d.tmin)}°</i></div>
-      <div class="mm">${d.prcp > 0 ? d.prcp.toFixed(1) + 'mm' : ''}</div>
+      <div class="d">${String(h).padStart(2,'0')}시</div>
+      <div class="ic">${wxIcon(w.code, w.prcp)}</div>
+      <div class="t">${Math.round(w.temp)}°</div>
+      <div class="mm">${w.prcp > 0 ? w.prcp.toFixed(1) + 'mm' : ''}</div>
       <div class="wx-tagline ${c}">${WX_COND_LABEL[c]}</div>`;
     el.addEventListener('click', () => {
-      /* 그날 날씨로 바꿔서 미리보기 — 오늘을 다시 누르면 자동으로 복귀 */
-      wxPickedIdx = i;
-      if(i === WX.todayIdx){ autoMode = true; runAutoAnalysis(); }
-      else { autoMode = false; cond.weather = wxToCond(d); }
-      buildWxStrip(); buildAutoCard(); render();
+      liveMode = false; selectedHour = h; render();
     });
     strip.appendChild(el);
-  });
-  scrollWxToToday();
+  }
+  scrollWxToHour();
+}
+function scrollWxToHour(){
+  const strip = $('wxStrip'); if(!strip) return;
+  const el = strip.children[selectedHour]; if(!el) return;
+  if(strip.clientWidth === 0){ setTimeout(scrollWxToHour, 200); return; }
+  strip.scrollLeft = Math.max(0, el.offsetLeft - strip.clientWidth / 2 + el.offsetWidth / 2);
 }
 
 /* ─── OpenStreetMap 지도 ─── */
@@ -1789,7 +1878,7 @@ $('tabbar').addEventListener('click', e => {
   window.scrollTo({top:0});
   /* 숨겨진 상태에서 만들어진 지도는 크기를 다시 잡아줘야 합니다 */
   if(btn.dataset.tab === 'map') ensureMap();
-  if(btn.dataset.tab === 'predict') setTimeout(scrollWxToToday, 80);
+  if(btn.dataset.tab === 'predict') setTimeout(scrollWxToHour, 80);
 });
 const goTab = n => document.querySelector(`#tabbar button[data-tab="${n}"]`).click();
 
@@ -1845,6 +1934,9 @@ function render(){
     : `${refDate().getDate()}일 ${DOW_KR[selectedDow]} ${String(selectedHour).padStart(2,'0')}:00 · 지금으로`;
   stamp.classList.toggle('back', !isNow);
 
+  /* 날씨 — 선택한 날짜·시각 기준으로 갱신 */
+  if(WX){ buildWxNow(); buildWxHourStrip(); }
+
   /* 장소 선택기 */
   $('poiText').textContent = selPoi.short;
   $('poiMenu').innerHTML = POIS.map(poi => {
@@ -1861,6 +1953,7 @@ function render(){
 
   drawSpark(selPoi);
   buildFlow(selPoi);
+  buildWxNow();
 
   /* 지도 */
   updateMap();
