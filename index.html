@@ -3,7 +3,17 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#F0F3F9">
+<meta name="theme-color" content="#EDF0EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#12171A" media="(prefers-color-scheme: dark)">
+<meta name="description" content="하양읍 유동인구 혼잡도를 시간대·요일별로 예측해 알려줍니다">
+<!-- 홈 화면에 추가하면 앱처럼 전체화면으로 열립니다 -->
+<link rel="manifest" href="data:application/manifest+json;base64,eyJuYW1lIjogIu2VmOyWkSDslYjsoITslYzrprwiLCAic2hvcnRfbmFtZSI6ICLtlZjslpHslYzrprwiLCAiZGVzY3JpcHRpb24iOiAi7ZWY7JaR7J2NIOycoOuPmeyduOq1rCDtmLzsnqHrj4Qg7JiI7LihIiwgInN0YXJ0X3VybCI6ICIuIiwgInNjb3BlIjogIi4iLCAiZGlzcGxheSI6ICJzdGFuZGFsb25lIiwgIm9yaWVudGF0aW9uIjogInBvcnRyYWl0IiwgImJhY2tncm91bmRfY29sb3IiOiAiI0VERjBFRSIsICJ0aGVtZV9jb2xvciI6ICIjRURGMEVFIiwgImxhbmciOiAia28iLCAiaWNvbnMiOiBbeyJzcmMiOiAiZGF0YTppbWFnZS9zdmcreG1sO2Jhc2U2NCxQSE4yWnlCNGJXeHVjejBpYUhSMGNEb3ZMM2QzZHk1M015NXZjbWN2TWpBd01DOXpkbWNpSUhacFpYZENiM2c5SWpBZ01DQTFNVElnTlRFeUlqNEtQSEpsWTNRZ2QybGtkR2c5SWpVeE1pSWdhR1ZwWjJoMFBTSTFNVElpSUhKNFBTSXhNVElpSUdacGJHdzlJaU13UkRFeU1UWWlMejRLUEhKbFkzUWdlRDBpTVRjMklpQjVQU0kzTWlJZ2QybGtkR2c5SWpFMk1DSWdhR1ZwWjJoMFBTSXpOamdpSUhKNFBTSTNNaUlnWm1sc2JEMGlJekExTURrd1F5SXZQZ284WTJseVkyeGxJR040UFNJeU5UWWlJR041UFNJeE5UQWlJSEk5SWpRMklpQm1hV3hzUFNJalJUQXpOREkzSWk4K0NqeGphWEpqYkdVZ1kzZzlJakkxTmlJZ1kzazlJakkxTmlJZ2NqMGlORFlpSUdacGJHdzlJaU15UVRNM05EZ2lMejRLUEdOcGNtTnNaU0JqZUQwaU1qVTJJaUJqZVQwaU16WXlJaUJ5UFNJME5pSWdabWxzYkQwaUl6SkJNemMwT0NJdlBnbzhMM04yWno0PSIsICJzaXplcyI6ICJhbnkiLCAidHlwZSI6ICJpbWFnZS9zdmcreG1sIiwgInB1cnBvc2UiOiAiYW55IG1hc2thYmxlIn1dfQ==">
+<link rel="apple-touch-icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KPHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHJ4PSIxMTIiIGZpbGw9IiMwRDEyMTYiLz4KPHJlY3QgeD0iMTc2IiB5PSI3MiIgd2lkdGg9IjE2MCIgaGVpZ2h0PSIzNjgiIHJ4PSI3MiIgZmlsbD0iIzA1MDkwQyIvPgo8Y2lyY2xlIGN4PSIyNTYiIGN5PSIxNTAiIHI9IjQ2IiBmaWxsPSIjRTAzNDI3Ii8+CjxjaXJjbGUgY3g9IjI1NiIgY3k9IjI1NiIgcj0iNDYiIGZpbGw9IiMyQTM3NDgiLz4KPGNpcmNsZSBjeD0iMjU2IiBjeT0iMzYyIiByPSI0NiIgZmlsbD0iIzJBMzc0OCIvPgo8L3N2Zz4=">
+<link rel="icon" href="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MTIgNTEyIj4KPHJlY3Qgd2lkdGg9IjUxMiIgaGVpZ2h0PSI1MTIiIHJ4PSIxMTIiIGZpbGw9IiMwRDEyMTYiLz4KPHJlY3QgeD0iMTc2IiB5PSI3MiIgd2lkdGg9IjE2MCIgaGVpZ2h0PSIzNjgiIHJ4PSI3MiIgZmlsbD0iIzA1MDkwQyIvPgo8Y2lyY2xlIGN4PSIyNTYiIGN5PSIxNTAiIHI9IjQ2IiBmaWxsPSIjRTAzNDI3Ii8+CjxjaXJjbGUgY3g9IjI1NiIgY3k9IjI1NiIgcj0iNDYiIGZpbGw9IiMyQTM3NDgiLz4KPGNpcmNsZSBjeD0iMjU2IiBjeT0iMzYyIiByPSI0NiIgZmlsbD0iIzJBMzc0OCIvPgo8L3N2Zz4=">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="하양알림">
 <title>하양 안전알림 · 유동인구 예측 신호판</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net">
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable-dynamic-subset.css">
@@ -43,6 +53,44 @@ if(typeof L === 'undefined'){
     --nav-h:64px;
     --ease:cubic-bezier(.22,.72,.24,1);
   }
+  /* 기기가 어두운 화면을 쓰면 앱도 따라갑니다 */
+  @media (prefers-color-scheme: dark){
+    :root{
+      --paper:#12171A; --card:#1A2124; --ink:#E8EDEF; --ink-2:#A5B1B6; --ink-3:#6F7C82;
+      --line:#283135; --line-2:#222A2E;
+      --safe-soft:#123324; --safe-ink:#4ECB92;
+      --watch-soft:#332B10; --watch-ink:#E8C74A;
+      --care-soft:#33200F; --care-ink:#F79B52;
+      --risk-soft:#341916; --risk-ink:#F0796C;
+      --road:#7FB2E8; --road-soft:#152430;
+      --sh-1:0 1px 2px rgba(0,0,0,.3);
+      --sh-2:0 2px 6px rgba(0,0,0,.28), 0 10px 26px rgba(0,0,0,.34);
+    }
+    .panel{background:linear-gradient(168deg,#1D262B,#10161A 62%);}
+    .nav{background:rgba(26,33,36,.94) !important;border-top-color:var(--line);}
+    .appbar{background:rgba(18,23,26,.9) !important;}
+    .seg,.dow button{background:#222A2E;}
+    .msg-preview{background:#1D2427;border-color:var(--line);color:#C8D2D6;}
+    .heat .hc{background:#242D31;}
+    .heat-legend .hbar{background:linear-gradient(90deg,#243029,#00A05A,#E8AE00,#F07A13,#E03427);}
+    .place.sel,.place:active{background:#1E272B !important;}
+    .switch i{background:#D4DDE1;}
+    .picker,.icon-btn,.pill,.wx-refresh,.sheet-x{background:var(--card);}
+    .pick-menu{background:#1E272B;}
+    .pick-menu button.on{background:#141A1D;}
+    .sheet{background:var(--paper);}
+    .sheet-grab i{background:#3A464B;}
+    .place .rankno,.trow .rk,.hrow .tg,.auto-row .vv{background:#242D31;}
+    .place .meter,.hrow .track{background:#242D31;}
+    .prose code{background:#242D31;}
+    .disclaimer{color:#59666C;}
+    .wx-day{background:var(--card);}
+    .hrow.future .track{background:repeating-linear-gradient(90deg,#242D31 0 5px,#1A2124 5px 7px);}
+    .map-frame,.leaflet-container,#leafmap{background:#1E272B;}
+    .leaflet-control-attribution{background:rgba(26,33,36,.85);color:#889499;}
+    .poi-tip{background:rgba(26,33,36,.95);border-color:var(--line);}
+    .lamp{background:#232E34;}
+  }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
   html{-webkit-text-size-adjust:100%;}
   body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--kr);
@@ -57,6 +105,7 @@ if(typeof L === 'undefined'){
     position:relative;display:flex;flex-direction:column;}
 
   /* ── 상단 바 (스크롤하면 납작해짐) ── */
+  .appbar > div:first-child{min-width:0;flex:1;}
   .appbar{position:sticky;top:0;z-index:40;
     background:color-mix(in srgb, var(--paper) 88%, transparent);
     backdrop-filter:saturate(1.6) blur(14px);-webkit-backdrop-filter:saturate(1.6) blur(14px);
@@ -69,6 +118,12 @@ if(typeof L === 'undefined'){
   .appbar .where{font-size:12.5px;color:var(--ink-3);margin-top:3px;letter-spacing:-.01em;
     max-height:20px;overflow:hidden;transition:max-height .22s var(--ease), opacity .18s;}
   .appbar.stuck .where{max-height:0;opacity:0;}
+  .icon-btn{background:var(--card);border:1px solid var(--line);border-radius:999px;
+    width:38px;height:38px;display:grid;place-items:center;flex-shrink:0;color:var(--ink-2);
+    transition:transform .12s var(--ease);}
+  .icon-btn:active{transform:scale(.92);}
+  .icon-btn svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.9;
+    stroke-linecap:round;stroke-linejoin:round;}
   .picker-wrap{position:relative;flex-shrink:0;}
   .picker{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;
     background:var(--card);border:1px solid var(--line);color:var(--ink);
@@ -103,6 +158,8 @@ if(typeof L === 'undefined'){
   .screen.on{display:block;animation:slidein .3s var(--ease) both;}
   @keyframes slidein{from{opacity:0;transform:translate3d(0,10px,0);}to{opacity:1;transform:none;}}
 
+  .disclaimer{text-align:center;font-size:11px;color:#B4BEC4;font-weight:500;
+    letter-spacing:-.01em;margin:26px 0 4px;line-height:1.5;}
   .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-1);}
   .sec-title{font-size:15.5px;font-weight:700;color:var(--ink);margin:28px 4px 11px;
     display:flex;justify-content:space-between;align-items:center;gap:10px;
@@ -169,8 +226,8 @@ if(typeof L === 'undefined'){
     padding:13px 15px;border:0;border-bottom:1px solid var(--line-2);background:none;width:100%;
     text-align:left;transition:background .16s, transform .12s var(--ease);}
   .place:last-child{border-bottom:none;}
-  .place:active{background:#F5F7F6;transform:scale(.988);}
-  .place.sel{background:#F6F8F7;}
+  .place:active{background:color-mix(in srgb, var(--ink) 4%, var(--card));transform:scale(.988);}
+  .place.sel{background:color-mix(in srgb, var(--ink) 3%, var(--card));}
   .place .rankno{width:21px;height:21px;border-radius:7px;background:var(--paper);color:var(--ink-3);
     font-family:var(--mono);font-size:11px;font-weight:700;display:grid;place-items:center;}
   .place .nm{font-weight:600;letter-spacing:-.03em;font-size:16px;}
@@ -248,13 +305,13 @@ if(typeof L === 'undefined'){
   .hrow.past{opacity:.55;}
   .hrow.past .track i{opacity:.6;}
   .hrow.future .track{background:repeating-linear-gradient(90deg,var(--paper) 0 5px,#fff 5px 7px);}
-  .hsep{display:flex;align-items:center;gap:10px;padding:9px 14px;background:#F6F8FA;
+  .hsep{display:flex;align-items:center;gap:10px;padding:9px 14px;background:color-mix(in srgb, var(--road) 6%, var(--card));
     border-bottom:1px solid var(--line-2);}
   .hsep::before,.hsep::after{content:"";flex:1;height:1px;background:var(--line);}
   .hsep span{font-size:11px;font-weight:700;color:var(--road);letter-spacing:-.02em;white-space:nowrap;}
   .hrow:last-child{border-bottom:none;}
-  .hrow.now{background:#F1F5F3;}
-  .hrow.sel{background:#FAFBFA;}
+  .hrow.now{background:color-mix(in srgb, var(--ink) 5%, var(--card));}
+  .hrow.sel{background:color-mix(in srgb, var(--ink) 2%, var(--card));}
   .hrow .hh{font-family:var(--mono);font-size:11px;color:var(--ink-3);letter-spacing:-.03em;}
   .hrow.now .hh{color:var(--ink);font-weight:700;}
   .hrow.sel .hh{color:var(--ink-2);font-weight:600;}
@@ -286,6 +343,36 @@ if(typeof L === 'undefined'){
     box-shadow:0 1px 3px rgba(0,0,0,.22);transition:transform .22s var(--ease);}
   .switch.on{background:var(--safe);}
   .switch.on i{transform:translateX(18px);}
+
+  /* ── 주간 히트맵 ── */
+  .heat-card{padding:12px 10px 10px;overflow:hidden;}
+  .heat{display:grid;grid-template-columns:20px repeat(24, minmax(0,1fr));gap:1.5px;width:100%;}
+  .heat .hlab{font-size:10px;color:var(--ink-3);display:flex;font-weight:700;
+    align-items:center;justify-content:center;letter-spacing:-.04em;}
+  .heat .htop{font-family:var(--mono);font-size:8px;color:var(--ink-3);text-align:center;
+    letter-spacing:-.08em;height:11px;overflow:hidden;}
+  .heat .hc{aspect-ratio:1;border-radius:2px;background:var(--line-2);cursor:pointer;min-width:0;
+    transition:transform .12s var(--ease), outline-color .15s;outline:1.5px solid transparent;outline-offset:0;}
+  .heat .hc:active{transform:scale(1.35);}
+  .heat .hc.sel{outline-color:var(--ink);z-index:2;}
+  .heat .hc.today{box-shadow:inset 0 0 0 1px rgba(23,87,143,.35);}
+  .heat .hlab.sun{color:var(--risk-ink);} .heat .hlab.sat{color:#2A5C9A;}
+  .heat .hlab.on{color:var(--ink);font-weight:700;}
+  .heat-legend{display:flex;align-items:center;gap:7px;margin-top:11px;padding:0 4px;
+    font-size:10.5px;color:var(--ink-3);font-weight:600;}
+  .heat-legend .hbar{flex:1;height:7px;border-radius:99px;
+    background:linear-gradient(90deg,#E4EBE7,#00A05A,#E8AE00,#F07A13,#E03427);}
+
+  /* ── 가장 붐비는 시간 TOP ── */
+  .top3{overflow:hidden;}
+  .trow{display:grid;grid-template-columns:24px 1fr auto;gap:11px;align-items:center;
+    padding:12px 15px;border-bottom:1px solid var(--line-2);width:100%;border:0;background:none;text-align:left;}
+  .trow:last-child{border-bottom:none;}
+  .trow:active{background:color-mix(in srgb, var(--ink) 4%, var(--card));}
+  .trow .rk{width:22px;height:22px;border-radius:7px;background:var(--paper);color:var(--ink-3);
+    font-family:var(--mono);font-size:11px;font-weight:700;display:grid;place-items:center;}
+  .trow .tw{font-size:14.5px;font-weight:600;letter-spacing:-.03em;}
+  .trow .tp{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);margin-top:3px;display:block;letter-spacing:-.02em;}
 
   /* ── 오늘 흐름 ── */
   .flow{display:grid;grid-template-columns:1fr;}
@@ -434,12 +521,16 @@ if(typeof L === 'undefined'){
       </button>
       <div class="pick-menu" id="poiMenu" role="menu"></div>
     </div>
+    <button class="icon-btn" id="shareBtn" aria-label="이 화면 공유하기">
+      <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/>
+      <circle cx="18" cy="19" r="3"/><path d="M8.6 13.5 15.4 17.5M15.4 6.5 8.6 10.5"/></svg>
+    </button>
   </header>
 
   <main>
 
     <!-- ══ 지금 ══ -->
-    <section class="screen on" id="screen-now">
+    <section class="screen on" id="screen-now" role="tabpanel" aria-label="지금">
       <div class="warn" id="warnBox"><span class="beat"></span><span id="warnText"></span></div>
 
       <div class="panel" id="signalPanel">
@@ -456,7 +547,7 @@ if(typeof L === 'undefined'){
           </div>
           <div class="panel-copy">
             <div class="hero-place" id="heroPlace">하양역</div>
-            <div class="hero-line" id="heroLine">확인 중</div>
+            <div class="hero-line" id="heroLine" role="status" aria-live="polite">확인 중</div>
             <div class="hero-num" id="heroPeople">계산 중</div>
             <div class="hero-sub" id="heroSub">지금 상황을 읽고 있어요</div>
           </div>
@@ -476,7 +567,7 @@ if(typeof L === 'undefined'){
     </section>
 
     <!-- ══ 지도 ══ -->
-    <section class="screen" id="screen-map">
+    <section class="screen" id="screen-map" role="tabpanel" aria-label="지도">
       <div class="card map-card">
         <div class="map-frame">
           <div id="leafmap" role="application" aria-label="하양읍 세 지점 지도"></div>
@@ -504,14 +595,29 @@ if(typeof L === 'undefined'){
     </section>
 
     <!-- ══ 시간대 ══ -->
-    <section class="screen" id="screen-hours">
+    <section class="screen" id="screen-hours" role="tabpanel" aria-label="요일 예상">
       <div class="pills" id="poiPills"></div>
+
+      <div class="sec-title">이번 주 한눈에 <small>탭하면 그 시간으로</small></div>
+      <div class="card heat-card">
+        <div class="heat" id="heatGrid" role="img" aria-label="요일별 24시간 혼잡도 격자"></div>
+        <div class="heat-legend">
+          <span>한산</span>
+          <i class="hbar"></i>
+          <span>붐빔</span>
+        </div>
+      </div>
+
+      <div class="sec-title">가장 붐비는 시간</div>
+      <div class="card top3" id="topList"></div>
+
+      <div class="sec-title">시간별 상세</div>
       <div class="dow" id="dayToggle"></div>
       <div class="card hours" id="hoursList"></div>
     </section>
 
     <!-- ══ 예측 조건 ══ -->
-    <section class="screen" id="screen-predict">
+    <section class="screen" id="screen-predict" role="tabpanel" aria-label="예측">
       <div class="sec-title">하양읍 날씨
         <span class="title-right">
           <small id="wxStamp"></small>
@@ -541,7 +647,7 @@ if(typeof L === 'undefined'){
     </section>
 
     <!-- ══ 전달·안내 ══ -->
-    <section class="screen" id="screen-info">
+    <section class="screen" id="screen-info" role="tabpanel" aria-label="전달">
       <div class="sec-title">주민에게 전달하기</div>
       <div class="card">
         <div class="msg-head"><span class="lb">카카오 알림톡 · 문자 문안</span><button class="copy-btn" id="copyMsg">복사</button></div>
@@ -554,9 +660,10 @@ if(typeof L === 'undefined'){
 
     </section>
 
+    <p class="disclaimer">표시되는 유동인구는 예측값입니다</p>
   </main>
 
-  <nav class="nav" id="tabbar">
+  <nav class="nav" id="tabbar" role="tablist" aria-label="화면 이동">
     <button data-tab="now" class="on"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>지금</button>
     <button data-tab="map"><svg viewBox="0 0 24 24"><path d="M9 4 3 6.5v13L9 17l6 2.5 6-2.5v-13L15 7z"/><path d="M9 4v13M15 7v12.5"/></svg>지도</button>
     <button data-tab="hours"><svg viewBox="0 0 24 24"><path d="M4 19V9M10 19V5M16 19v-7M22 19H2"/></svg>요일 예상</button>
@@ -1129,7 +1236,16 @@ let playing = false, playTimer = null;
 const $ = id => document.getElementById(id);
 const fmt = n => Math.round(n).toLocaleString('ko-KR');
 
-function normalize(arr){ const avg = arr.reduce((a,b)=>a+b,0)/arr.length; return arr.map(v=>v/avg); }
+/* 같은 배열을 매번 다시 계산하지 않도록 결과를 기억해 둡니다 */
+const _normCache = new WeakMap();
+function normalize(arr){
+  let v = _normCache.get(arr);
+  if(v) return v;
+  const avg = arr.reduce((a,b)=>a+b,0) / arr.length;
+  v = arr.map(x => x / avg);
+  _normCache.set(arr, v);
+  return v;
+}
 function weightFor(poiId, hour){
   const ref = refDate();
   let w;
@@ -1175,14 +1291,27 @@ function indexFor(poi, hour, withCond = true){
 }
 /* 인원 = 일반 통행(시간대 곡선) + 학교 통학(등하교 곡선)
    학교 통학은 방학·휴업일에 거의 사라집니다 */
+/* 한 번 그리는 동안 바뀌지 않는 값들을 모아 둡니다 (요일·날짜가 바뀌면 비웁니다) */
+let _frame = { key:'', k12:null, curve:null, weight:{} };
+function frameKey(){ return dayType + '|' + selectedDow + '|' + autoMode + '|' + cond.weather
+  + '|' + cond.academic + '|' + cond.bus + '|' + cond.event + '|' + (WX ? WX.stamp || '' : ''); }
+function frameCache(){
+  const k = frameKey();
+  if(_frame.key !== k) _frame = { key:k, k12:null, curve:null, weight:{} };
+  if(_frame.k12 === null)   _frame.k12   = k12Active();
+  if(_frame.curve === null) _frame.curve = schoolCurve();
+  return _frame;
+}
+
 function peopleFor(poi, hour, withCond = true){
   const total = BASELINE[poi.id].daily;
   const sd = SCHOOL_DAILY[poi.id] || 0;
   const other = total - sd;
   const curve = normalize(poi[dayType])[hour] / 24;
+  const f = withCond ? frameCache() : null;
   const w = withCond ? weightFor(poi.id, hour) : 1;
-  const k = withCond ? k12Active() : 1;
-  const sc = withCond ? schoolCurve()[hour] : SCHOOL_CURVES.class[hour];
+  const k = withCond ? f.k12 : 1;
+  const sc = withCond ? f.curve[hour] : SCHOOL_CURVES.class[hour];
   return (other * curve + sd * sc * k) * w;
 }
 /* 평상시(조건 없는 평일) 하루 중 가장 붐빌 때의 시간당 인원 */
@@ -1369,19 +1498,19 @@ let wxSource = null;       /* 'live' | 'normal' */
    하양읍 기준으로 옮겨 적었습니다. 이 기간이 지나면 아래 평년값으로 자동 전환됩니다.
    갱신하려면 weather.go.kr 중기예보를 보고 날짜와 숫자만 바꾸면 됩니다. */
 const WX_SNAPSHOT = {
-  issued: '2026-08-11',
-  issuedTime: '17:00',
-  src: '기상청 단기·중기예보',
-  /* 대구·경북 통보문의 기온 범위 중 경북남부내륙(경산·하양) 쪽 값을 씁니다 */
+  issued: '2026-08-20',
+  issuedTime: '',
+  src: '기상청 예보',
+  /* 대구·경북내륙 기준. 당분간 무더위, 20~21일 곳에 따라 소나기(5~60mm) */
   days: {
-    '2026-08-11': { code:0,  tmax:32.5, tmin:24.4, prcp:0 },   /* 대체로 맑음 */
-    '2026-08-12': { code:2,  tmax:31,   tmin:24,   prcp:0 },   /* 가끔 구름많음 */
-    '2026-08-13': { code:80, tmax:34,   tmin:24,   prcp:12 },  /* 오후~저녁 곳에 따라 소나기 */
-    '2026-08-14': { code:80, tmax:34,   tmin:24,   prcp:10 },  /* 대체로 흐림, 곳에 따라 소나기 */
-    '2026-08-15': { code:3,  tmax:33,   tmin:23,   prcp:0 },   /* 대체로 흐림 */
-    '2026-08-16': { code:2,  tmax:33,   tmin:24,   prcp:0 },   /* 중기예보 */
-    '2026-08-17': { code:2,  tmax:33,   tmin:24,   prcp:0 },
-    '2026-08-18': { code:2,  tmax:33,   tmin:24,   prcp:0 }
+    '2026-08-20': { code:80, tmax:33, tmin:24, prcp:15 },   /* 흐리고 곳에 따라 소나기 */
+    '2026-08-21': { code:80, tmax:32, tmin:24, prcp:18 },   /* 오후~저녁 소나기 */
+    '2026-08-22': { code:3,  tmax:32, tmin:24, prcp:0  },   /* 구름많음 */
+    '2026-08-23': { code:2,  tmax:32, tmin:24, prcp:0  },   /* 구름많음 */
+    '2026-08-24': { code:2,  tmax:32, tmin:24, prcp:0  },
+    '2026-08-25': { code:2,  tmax:32, tmin:24, prcp:0  },
+    '2026-08-26': { code:2,  tmax:31, tmin:23, prcp:0  },
+    '2026-08-27': { code:2,  tmax:31, tmin:23, prcp:0  }
   }
 };
 
@@ -1884,12 +2013,17 @@ function updateMap(){
 /* ── 탭 ── */
 $('tabbar').addEventListener('click', e => {
   const btn = e.target.closest('button'); if(!btn) return;
-  document.querySelectorAll('#tabbar button').forEach(b => b.classList.toggle('on', b === btn));
+  document.querySelectorAll('#tabbar button').forEach(b => {
+    b.classList.toggle('on', b === btn);
+    b.setAttribute('aria-selected', String(b === btn));
+    b.setAttribute('role', 'tab');
+  });
   document.querySelectorAll('.screen').forEach(s => s.classList.toggle('on', s.id === 'screen-' + btn.dataset.tab));
   window.scrollTo({top:0});
   /* 숨겨진 상태에서 만들어진 지도는 크기를 다시 잡아줘야 합니다 */
   if(btn.dataset.tab === 'map') ensureMap();
   if(btn.dataset.tab === 'predict') setTimeout(scrollWxToHour, 80);
+  if(btn.dataset.tab === 'hours') render();
 });
 const goTab = n => document.querySelector(`#tabbar button[data-tab="${n}"]`).click();
 
@@ -1902,6 +2036,8 @@ function buildPlaces(container, hour){
         const lv = levelFor(it.pct);
         const btn = document.createElement('button');
         btn.className = 'place' + (it.poi.id === selectedPoiId ? ' sel' : '');
+        btn.setAttribute('aria-label',
+          `${it.poi.name} 혼잡도 ${lv.label}, 시간당 약 ${fmt(it.ppl)}명`);
         btn.innerHTML = `
           <span class="rankno">${i+1}</span>
           <span>
@@ -1916,6 +2052,7 @@ function buildPlaces(container, hour){
 }
 
 /* ── 메인 렌더 ── */
+let _inWeek = false;
 function render(){
   if(autoMode) runAutoAnalysis();
   buildAutoCard();
@@ -1989,6 +2126,14 @@ function render(){
   buildPlaces($('placesNow'), selectedHour);
   buildPlaces($('placesMap'), selectedHour);
 
+  /* 주간 히트맵 · 붐비는 시간 (요일 예상 탭이 열려 있을 때만) */
+  if($('screen-hours').classList.contains('on') && !_inWeek){
+    _inWeek = true;
+    const m = buildHeat(selPoi);
+    if(m) buildTop(selPoi, m);
+    _inWeek = false;
+  }
+
   /* 요일 버튼 */
   const dowBox = $('dayToggle');
   if(dowBox){
@@ -1997,7 +2142,8 @@ function render(){
       const d = new Date(); d.setDate(d.getDate() + (i - today));
       const cls = (i === 0 ? 'sun' : i === 6 ? 'sat' : '')
         + (i === selectedDow ? ' on' : '') + (i === today ? ' today' : '');
-      return `<button data-dow="${i}" class="${cls}">${k}<span class="dd">${d.getDate()}</span></button>`;
+      return `<button data-dow="${i}" class="${cls}" aria-pressed="${i === selectedDow}"
+        aria-label="${k}요일 ${d.getMonth()+1}월 ${d.getDate()}일">${k}<span class="dd">${d.getDate()}</span></button>`;
     }).join('');
   }
 
@@ -2047,9 +2193,73 @@ function render(){
   }
 
   buildMessage();
+  writeHash();
 }
 
 /* 오늘 하루 중 가장 붐비는 시간 */
+/* ── 주간 히트맵 ──
+   요일을 잠시 바꿔가며 계산하므로, 끝나면 원래 요일로 되돌립니다. */
+function weekMatrix(poi){
+  const keep = selectedDow, keepType = dayType, keepAuto = autoMode;
+  const rows = [];
+  for(let d = 0; d < 7; d++){
+    setDow(d);
+    if(autoMode) runAutoAnalysis();
+    const row = [];
+    for(let h = 0; h < 24; h++) row.push({ pct:congestionFor(poi, h), ppl:peopleFor(poi, h) });
+    rows.push(row);
+  }
+  setDow(keep); dayType = keepType; autoMode = keepAuto;
+  if(autoMode) runAutoAnalysis();
+  return rows;
+}
+
+function heatColor(pct){
+  const lv = levelFor(pct);
+  /* 같은 등급 안에서도 진하기를 달리해 미세한 차이를 보여줍니다 */
+  const a = Math.max(0.12, Math.min(1, pct / 130));
+  return lv.key === 'safe'
+    ? `rgba(0,160,90,${(a * 0.85).toFixed(2)})`
+    : lv.color + Math.round(Math.max(0.35, a) * 255).toString(16).padStart(2, '0');
+}
+
+function buildHeat(poi){
+  const grid = $('heatGrid'); if(!grid) return;
+  const m = weekMatrix(poi);
+  const today = new Date().getDay();
+  let html = '<div class="hlab"></div>';
+  for(let h = 0; h < 24; h++) html += `<div class="htop">${h % 6 === 0 ? h : ''}</div>`;
+  for(let d = 0; d < 7; d++){
+    const cls = (d === 0 ? 'sun' : d === 6 ? 'sat' : '') + (d === selectedDow ? ' on' : '');
+    html += `<div class="hlab ${cls}">${DOW_KR[d]}</div>`;
+    for(let h = 0; h < 24; h++){
+      const c = m[d][h];
+      html += `<div class="hc${d === selectedDow && h === selectedHour ? ' sel' : ''}${d === today ? ' today' : ''}"
+        data-d="${d}" data-h="${h}" style="background:${heatColor(c.pct)}"
+        title="${DOW_KR[d]} ${h}시 · ${fmt(c.ppl)}명 · ${levelFor(c.pct).label}"></div>`;
+    }
+  }
+  grid.innerHTML = html;
+  return m;
+}
+
+/* ── 이번 주 가장 붐비는 시간 3개 ── */
+function buildTop(poi, m){
+  const box = $('topList'); if(!box) return;
+  const all = [];
+  for(let d = 0; d < 7; d++) for(let h = 0; h < 24; h++)
+    all.push({ d, h, ...m[d][h] });
+  all.sort((a, b) => b.pct - a.pct);
+  box.innerHTML = all.slice(0, 3).map((x, i) => {
+    const lv = levelFor(x.pct);
+    return `<button class="trow" data-d="${x.d}" data-h="${x.h}">
+      <span class="rk">${i + 1}</span>
+      <span><span class="tw">${DOW_KR[x.d]}요일 ${hourLabel(x.h)}</span>
+        <span class="tp">${fmt(x.ppl)}명/시간</span></span>
+      <span class="chip ${lv.key}">${lv.label}</span></button>`;
+  }).join('');
+}
+
 function buildFlow(poi){
   const box = $('flowCard'); if(!box) return;
   $('flowPoi').textContent = poi.short;
@@ -2093,6 +2303,26 @@ function fireNotification(poi, pct){
 }
 
 /* ── 컨트롤 ── */
+/* 히트맵 칸을 누르면 그 요일·시각으로 이동 */
+$('heatGrid').addEventListener('click', e => {
+  const c = e.target.closest('.hc'); if(!c) return;
+  jumpTo(Number(c.dataset.d), Number(c.dataset.h));
+});
+$('topList').addEventListener('click', e => {
+  const t = e.target.closest('.trow'); if(!t) return;
+  jumpTo(Number(t.dataset.d), Number(t.dataset.h));
+});
+function jumpTo(d, h){
+  setDow(d);
+  selectedHour = h;
+  const isNow = d === new Date().getDay() && h === new Date().getHours();
+  liveMode = isNow;
+  if(isNow) autoMode = true;
+  playing = false; clearInterval(playTimer); $('playBtn').textContent = '▶';
+  render();
+  toast(`${DOW_KR[d]}요일 ${hourLabel(h)}`);
+}
+
 $('dayToggle').addEventListener('click', e => {
   const btn = e.target.closest('button'); if(!btn) return;
   setDow(Number(btn.dataset.dow));
@@ -2274,6 +2504,43 @@ function drawSpark(poi){
   });
 })();
 
+/* ══════ 주소로 상태 주고받기 ══════
+   #station-3-14 처럼 지점·요일·시각을 주소에 담아, 링크만으로 같은 화면을 열 수 있습니다. */
+function readHash(){
+  const m = (location.hash || '').replace('#', '').split('-');
+  if(m.length < 3) return false;
+  const poi = POIS.find(p => p.id === m[0]);
+  const d = Number(m[1]), h = Number(m[2]);
+  if(!poi || !(d >= 0 && d <= 6) || !(h >= 0 && h <= 23)) return false;
+  selectedPoiId = poi.id;
+  setDow(d);
+  selectedHour = h;
+  const isNow = d === new Date().getDay() && h === new Date().getHours();
+  liveMode = isNow; autoMode = true;
+  return true;
+}
+function writeHash(){
+  const want = `#${selectedPoiId}-${selectedDow}-${selectedHour}`;
+  if(location.hash !== want) history.replaceState(null, '', want);
+}
+window.addEventListener('hashchange', () => { if(readHash()) render(); });
+
+/* 지금 화면을 공유합니다 */
+async function shareView(){
+  const poi = POIS.find(p => p.id === selectedPoiId);
+  const pct = congestionFor(poi, selectedHour);
+  const text = `${poi.name} · ${DOW_KR[selectedDow]}요일 ${hourLabel(selectedHour)}\n`
+    + `혼잡도 ${levelFor(pct).label} · 약 ${fmt(peopleFor(poi, selectedHour))}명/시간`;
+  const url = location.href.split('#')[0] + `#${selectedPoiId}-${selectedDow}-${selectedHour}`;
+  try{
+    if(navigator.share){ await navigator.share({ title:'하양 안전알림', text, url }); return; }
+    await navigator.clipboard.writeText(text + '\n' + url);
+    toast('링크를 복사했어요');
+  }catch(e){ /* 사용자가 취소한 경우 */ }
+}
+$('shareBtn').addEventListener('click', shareView);
+
+readHash();
 render();
 loadWeather(false);
 setInterval(() => { if(liveMode) render(); }, 30000);
