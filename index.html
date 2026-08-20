@@ -71,8 +71,6 @@ if(typeof L === 'undefined'){
     .appbar{background:rgba(18,23,26,.9) !important;}
     .seg,.dow button{background:#222A2E;}
     .msg-preview{background:#1D2427;border-color:var(--line);color:#C8D2D6;}
-    .heat .hc{background:#242D31;}
-    .heat-legend .hbar{background:linear-gradient(90deg,#243029,#00A05A,#E8AE00,#F07A13,#E03427);}
     .place.sel,.place:active{background:#1E272B !important;}
     .switch i{background:#D4DDE1;}
     .picker,.icon-btn,.pill,.wx-refresh,.sheet-x{background:var(--card);}
@@ -80,7 +78,7 @@ if(typeof L === 'undefined'){
     .pick-menu button.on{background:#141A1D;}
     .sheet{background:var(--paper);}
     .sheet-grab i{background:#3A464B;}
-    .place .rankno,.trow .rk,.hrow .tg,.auto-row .vv{background:#242D31;}
+    .place .rankno,.hrow .tg,.auto-row .vv{background:#242D31;}
     .place .meter,.hrow .track{background:#242D31;}
     .prose code{background:#242D31;}
     .disclaimer{color:#59666C;}
@@ -344,36 +342,6 @@ if(typeof L === 'undefined'){
   .switch.on{background:var(--safe);}
   .switch.on i{transform:translateX(18px);}
 
-  /* ── 주간 히트맵 ── */
-  .heat-card{padding:12px 10px 10px;overflow:hidden;}
-  .heat{display:grid;grid-template-columns:20px repeat(24, minmax(0,1fr));gap:1.5px;width:100%;}
-  .heat .hlab{font-size:10px;color:var(--ink-3);display:flex;font-weight:700;
-    align-items:center;justify-content:center;letter-spacing:-.04em;}
-  .heat .htop{font-family:var(--mono);font-size:8px;color:var(--ink-3);text-align:center;
-    letter-spacing:-.08em;height:11px;overflow:hidden;}
-  .heat .hc{aspect-ratio:1;border-radius:2px;background:var(--line-2);cursor:pointer;min-width:0;
-    transition:transform .12s var(--ease), outline-color .15s;outline:1.5px solid transparent;outline-offset:0;}
-  .heat .hc:active{transform:scale(1.35);}
-  .heat .hc.sel{outline-color:var(--ink);z-index:2;}
-  .heat .hc.today{box-shadow:inset 0 0 0 1px rgba(23,87,143,.35);}
-  .heat .hlab.sun{color:var(--risk-ink);} .heat .hlab.sat{color:#2A5C9A;}
-  .heat .hlab.on{color:var(--ink);font-weight:700;}
-  .heat-legend{display:flex;align-items:center;gap:7px;margin-top:11px;padding:0 4px;
-    font-size:10.5px;color:var(--ink-3);font-weight:600;}
-  .heat-legend .hbar{flex:1;height:7px;border-radius:99px;
-    background:linear-gradient(90deg,#E4EBE7,#00A05A,#E8AE00,#F07A13,#E03427);}
-
-  /* ── 가장 붐비는 시간 TOP ── */
-  .top3{overflow:hidden;}
-  .trow{display:grid;grid-template-columns:24px 1fr auto;gap:11px;align-items:center;
-    padding:12px 15px;border-bottom:1px solid var(--line-2);width:100%;border:0;background:none;text-align:left;}
-  .trow:last-child{border-bottom:none;}
-  .trow:active{background:color-mix(in srgb, var(--ink) 4%, var(--card));}
-  .trow .rk{width:22px;height:22px;border-radius:7px;background:var(--paper);color:var(--ink-3);
-    font-family:var(--mono);font-size:11px;font-weight:700;display:grid;place-items:center;}
-  .trow .tw{font-size:14.5px;font-weight:600;letter-spacing:-.03em;}
-  .trow .tp{font-family:var(--mono);font-size:11.5px;color:var(--ink-3);margin-top:3px;display:block;letter-spacing:-.02em;}
-
   /* ── 오늘 흐름 ── */
   .flow{display:grid;grid-template-columns:1fr;}
   .flow > div{padding:15px 16px;}
@@ -598,20 +566,6 @@ if(typeof L === 'undefined'){
     <section class="screen" id="screen-hours" role="tabpanel" aria-label="요일 예상">
       <div class="pills" id="poiPills"></div>
 
-      <div class="sec-title">이번 주 한눈에 <small>탭하면 그 시간으로</small></div>
-      <div class="card heat-card">
-        <div class="heat" id="heatGrid" role="img" aria-label="요일별 24시간 혼잡도 격자"></div>
-        <div class="heat-legend">
-          <span>한산</span>
-          <i class="hbar"></i>
-          <span>붐빔</span>
-        </div>
-      </div>
-
-      <div class="sec-title">가장 붐비는 시간</div>
-      <div class="card top3" id="topList"></div>
-
-      <div class="sec-title">시간별 상세</div>
       <div class="dow" id="dayToggle"></div>
       <div class="card hours" id="hoursList"></div>
     </section>
@@ -2052,7 +2006,6 @@ function buildPlaces(container, hour){
 }
 
 /* ── 메인 렌더 ── */
-let _inWeek = false;
 function render(){
   if(autoMode) runAutoAnalysis();
   buildAutoCard();
@@ -2126,14 +2079,6 @@ function render(){
   buildPlaces($('placesNow'), selectedHour);
   buildPlaces($('placesMap'), selectedHour);
 
-  /* 주간 히트맵 · 붐비는 시간 (요일 예상 탭이 열려 있을 때만) */
-  if($('screen-hours').classList.contains('on') && !_inWeek){
-    _inWeek = true;
-    const m = buildHeat(selPoi);
-    if(m) buildTop(selPoi, m);
-    _inWeek = false;
-  }
-
   /* 요일 버튼 */
   const dowBox = $('dayToggle');
   if(dowBox){
@@ -2197,69 +2142,6 @@ function render(){
 }
 
 /* 오늘 하루 중 가장 붐비는 시간 */
-/* ── 주간 히트맵 ──
-   요일을 잠시 바꿔가며 계산하므로, 끝나면 원래 요일로 되돌립니다. */
-function weekMatrix(poi){
-  const keep = selectedDow, keepType = dayType, keepAuto = autoMode;
-  const rows = [];
-  for(let d = 0; d < 7; d++){
-    setDow(d);
-    if(autoMode) runAutoAnalysis();
-    const row = [];
-    for(let h = 0; h < 24; h++) row.push({ pct:congestionFor(poi, h), ppl:peopleFor(poi, h) });
-    rows.push(row);
-  }
-  setDow(keep); dayType = keepType; autoMode = keepAuto;
-  if(autoMode) runAutoAnalysis();
-  return rows;
-}
-
-function heatColor(pct){
-  const lv = levelFor(pct);
-  /* 같은 등급 안에서도 진하기를 달리해 미세한 차이를 보여줍니다 */
-  const a = Math.max(0.12, Math.min(1, pct / 130));
-  return lv.key === 'safe'
-    ? `rgba(0,160,90,${(a * 0.85).toFixed(2)})`
-    : lv.color + Math.round(Math.max(0.35, a) * 255).toString(16).padStart(2, '0');
-}
-
-function buildHeat(poi){
-  const grid = $('heatGrid'); if(!grid) return;
-  const m = weekMatrix(poi);
-  const today = new Date().getDay();
-  let html = '<div class="hlab"></div>';
-  for(let h = 0; h < 24; h++) html += `<div class="htop">${h % 6 === 0 ? h : ''}</div>`;
-  for(let d = 0; d < 7; d++){
-    const cls = (d === 0 ? 'sun' : d === 6 ? 'sat' : '') + (d === selectedDow ? ' on' : '');
-    html += `<div class="hlab ${cls}">${DOW_KR[d]}</div>`;
-    for(let h = 0; h < 24; h++){
-      const c = m[d][h];
-      html += `<div class="hc${d === selectedDow && h === selectedHour ? ' sel' : ''}${d === today ? ' today' : ''}"
-        data-d="${d}" data-h="${h}" style="background:${heatColor(c.pct)}"
-        title="${DOW_KR[d]} ${h}시 · ${fmt(c.ppl)}명 · ${levelFor(c.pct).label}"></div>`;
-    }
-  }
-  grid.innerHTML = html;
-  return m;
-}
-
-/* ── 이번 주 가장 붐비는 시간 3개 ── */
-function buildTop(poi, m){
-  const box = $('topList'); if(!box) return;
-  const all = [];
-  for(let d = 0; d < 7; d++) for(let h = 0; h < 24; h++)
-    all.push({ d, h, ...m[d][h] });
-  all.sort((a, b) => b.pct - a.pct);
-  box.innerHTML = all.slice(0, 3).map((x, i) => {
-    const lv = levelFor(x.pct);
-    return `<button class="trow" data-d="${x.d}" data-h="${x.h}">
-      <span class="rk">${i + 1}</span>
-      <span><span class="tw">${DOW_KR[x.d]}요일 ${hourLabel(x.h)}</span>
-        <span class="tp">${fmt(x.ppl)}명/시간</span></span>
-      <span class="chip ${lv.key}">${lv.label}</span></button>`;
-  }).join('');
-}
-
 function buildFlow(poi){
   const box = $('flowCard'); if(!box) return;
   $('flowPoi').textContent = poi.short;
@@ -2303,26 +2185,6 @@ function fireNotification(poi, pct){
 }
 
 /* ── 컨트롤 ── */
-/* 히트맵 칸을 누르면 그 요일·시각으로 이동 */
-$('heatGrid').addEventListener('click', e => {
-  const c = e.target.closest('.hc'); if(!c) return;
-  jumpTo(Number(c.dataset.d), Number(c.dataset.h));
-});
-$('topList').addEventListener('click', e => {
-  const t = e.target.closest('.trow'); if(!t) return;
-  jumpTo(Number(t.dataset.d), Number(t.dataset.h));
-});
-function jumpTo(d, h){
-  setDow(d);
-  selectedHour = h;
-  const isNow = d === new Date().getDay() && h === new Date().getHours();
-  liveMode = isNow;
-  if(isNow) autoMode = true;
-  playing = false; clearInterval(playTimer); $('playBtn').textContent = '▶';
-  render();
-  toast(`${DOW_KR[d]}요일 ${hourLabel(h)}`);
-}
-
 $('dayToggle').addEventListener('click', e => {
   const btn = e.target.closest('button'); if(!btn) return;
   setDow(Number(btn.dataset.dow));
