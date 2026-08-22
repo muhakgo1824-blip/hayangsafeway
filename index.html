@@ -66,7 +66,7 @@ if(typeof L === 'undefined'){
       --sh-1:0 1px 2px rgba(0,0,0,.3);
       --sh-2:0 2px 6px rgba(0,0,0,.28), 0 10px 26px rgba(0,0,0,.34);
     }
-    .panel{background:linear-gradient(168deg,#1D262B,#10161A 62%);}
+
     .nav{background:rgba(26,33,36,.94) !important;border-top-color:var(--line);}
     .appbar{background:rgba(18,23,26,.9) !important;}
     .seg,.dow button{background:#222A2E;}
@@ -79,6 +79,11 @@ if(typeof L === 'undefined'){
     .sheet{background:var(--paper);}
     .sheet-grab i{background:#3A464B;}
     .place .rankno,.hrow .tg,.auto-row .vv{background:#242D31;}
+    .place:first-child .rankno{background:#E8EDEF;color:#101619;}
+    .nav button::before{background:#E8EDEF;}
+    .pill.on,.dow button.on{box-shadow:0 3px 10px rgba(0,0,0,.4);}
+    .picker{box-shadow:0 2px 8px rgba(0,0,0,.35);}
+    .chip{box-shadow:inset 0 0 0 1px rgba(255,255,255,.06);}
     .place .meter,.hrow .track{background:#242D31;}
     .prose code{background:#242D31;}
     .disclaimer{color:#59666C;}
@@ -105,8 +110,8 @@ if(typeof L === 'undefined'){
   /* ── 상단 바 (스크롤하면 납작해짐) ── */
   .appbar > div:first-child{min-width:0;flex:1;}
   .appbar{position:sticky;top:0;z-index:40;
-    background:color-mix(in srgb, var(--paper) 88%, transparent);
-    backdrop-filter:saturate(1.6) blur(14px);-webkit-backdrop-filter:saturate(1.6) blur(14px);
+    background:color-mix(in srgb, var(--paper) 82%, transparent);
+    backdrop-filter:saturate(1.8) blur(20px);-webkit-backdrop-filter:saturate(1.8) blur(20px);
     padding:calc(12px + env(safe-area-inset-top)) 20px 11px;
     display:flex;align-items:center;justify-content:space-between;gap:12px;
     border-bottom:1px solid transparent;transition:border-color .2s, padding .22s var(--ease);}
@@ -125,7 +130,8 @@ if(typeof L === 'undefined'){
   .picker-wrap{position:relative;flex-shrink:0;}
   .picker{display:flex;align-items:center;gap:7px;font-size:13.5px;font-weight:700;
     background:var(--card);border:1px solid var(--line);color:var(--ink);
-    border-radius:999px;padding:8px 13px;letter-spacing:-.03em;
+    border-radius:999px;padding:9px 14px;letter-spacing:-.03em;
+    box-shadow:0 2px 8px rgba(16,22,25,.07);
     transition:transform .12s var(--ease), border-color .18s;}
   .picker:active{transform:scale(.95);}
   .picker.open{border-color:var(--ink);}
@@ -153,68 +159,119 @@ if(typeof L === 'undefined'){
 
   main{flex:1;padding:14px 18px calc(var(--nav-h) + 30px + env(safe-area-inset-bottom));}
   .screen{display:none;}
-  .screen.on{display:block;animation:slidein .3s var(--ease) both;}
+  .screen.on{display:block;animation:slidein .32s var(--ease) both;}
+  /* 화면이 뜰 때 요소가 차례로 올라옵니다 */
+  .screen.on > *{animation:rise .42s var(--ease) both;}
+  .screen.on > *:nth-child(1){animation-delay:.02s;}
+  .screen.on > *:nth-child(2){animation-delay:.06s;}
+  .screen.on > *:nth-child(3){animation-delay:.10s;}
+  .screen.on > *:nth-child(4){animation-delay:.14s;}
+  .screen.on > *:nth-child(5){animation-delay:.18s;}
+  .screen.on > *:nth-child(n+6){animation-delay:.22s;}
+  @keyframes rise{from{opacity:0;transform:translate3d(0,12px,0);}to{opacity:1;transform:none;}}
   @keyframes slidein{from{opacity:0;transform:translate3d(0,10px,0);}to{opacity:1;transform:none;}}
 
   .disclaimer{text-align:center;font-size:11px;color:#B4BEC4;font-weight:500;
     letter-spacing:-.01em;margin:26px 0 4px;line-height:1.5;}
-  .card{background:var(--card);border:1px solid var(--line);border-radius:var(--r-lg);box-shadow:var(--sh-1);}
-  .sec-title{font-size:15.5px;font-weight:700;color:var(--ink);margin:28px 4px 11px;
-    display:flex;justify-content:space-between;align-items:center;gap:10px;
-    letter-spacing:-.03em;text-transform:none;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:20px;
+    box-shadow:0 1px 2px rgba(16,22,25,.04), 0 6px 18px rgba(16,22,25,.045);}
+  .sec-title{font-size:15.5px;font-weight:800;color:var(--ink);margin:30px 2px 12px;
+    display:flex;justify-content:space-between;align-items:center;gap:10px;letter-spacing:-.035em;}
+  .sec-title::before{content:"";width:3px;height:15px;border-radius:99px;background:var(--ink);
+    margin-right:9px;flex-shrink:0;opacity:.85;}
+  .sec-title > span:not(.title-right){flex:1;text-align:left;}
   .sec-title small{font-weight:600;color:var(--ink-3);font-size:12px;letter-spacing:-.02em;}
   .screen > .sec-title:first-child{margin-top:2px;}
 
   /* ══ 신호판 (이 앱의 얼굴) ══ */
-  .panel{position:relative;border-radius:var(--r-lg);overflow:hidden;
-    background:
-      radial-gradient(120% 90% at 88% 0%, rgba(255,255,255,.07), transparent 60%),
-      linear-gradient(168deg, var(--panel-2), var(--panel) 62%);
-    box-shadow:var(--sh-panel);color:#E7EDF0;padding:18px 18px 15px;}
-  /* 도트매트릭스 질감 */
-  .panel::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.5;
-    background-image:radial-gradient(rgba(255,255,255,.055) 1px, transparent 1px);
-    background-size:4px 4px;}
-  .panel-top{display:flex;align-items:center;justify-content:space-between;gap:10px;
-    font-size:14px;letter-spacing:.04em;color:#8D9CA6;font-weight:700;position:relative;}
-  .stamp{background:none;border:none;color:#75858F;font-size:11.5px;font-weight:600;letter-spacing:.04em;
-    padding:3px 0 3px 8px;font-family:inherit;flex-shrink:0;}
-  .stamp.back{color:#A9B7C0;text-decoration:underline;text-underline-offset:3px;}
-  .panel-body{display:flex;gap:16px;align-items:center;margin-top:13px;position:relative;}
+  .panel{position:relative;border-radius:26px;overflow:hidden;isolation:isolate;
+    background:linear-gradient(168deg,#1B242A 0%,#0E1418 55%,#0A0F12 100%);
+    box-shadow:0 2px 6px rgba(10,15,18,.2), 0 18px 44px rgba(10,15,18,.3),
+               inset 0 1px 0 rgba(255,255,255,.07);
+    color:#E7EDF0;padding:20px 20px 16px;
+    transition:box-shadow .7s var(--ease);}
+  /* 등급에 따라 판 전체가 은은하게 물듭니다 */
+  .panel::after{content:"";position:absolute;inset:-40% -10% auto -10%;height:80%;
+    pointer-events:none;z-index:-1;opacity:.5;filter:blur(46px);
+    background:radial-gradient(60% 100% at 22% 40%, var(--glow, transparent), transparent 72%);
+    transition:background .8s var(--ease), opacity .8s;}
+  .panel.lv-safe { --glow:rgba(0,190,110,.55); }
+  .panel.lv-watch{ --glow:rgba(232,174,0,.5); }
+  .panel.lv-care { --glow:rgba(240,122,19,.55); }
+  .panel.lv-risk { --glow:rgba(224,52,39,.6); }
+  .panel.lv-risk{box-shadow:0 2px 6px rgba(10,15,18,.2), 0 18px 44px rgba(120,20,14,.28),
+                            inset 0 1px 0 rgba(255,255,255,.07);}
+  /* 도트매트릭스 + 미세한 주사선 */
+  .panel::before{content:"";position:absolute;inset:0;pointer-events:none;z-index:0;opacity:.55;
+    background-image:
+      radial-gradient(rgba(255,255,255,.06) 1px, transparent 1px),
+      repeating-linear-gradient(180deg, rgba(255,255,255,.022) 0 1px, transparent 1px 3px);
+    background-size:4px 4px, 100% 3px;}
+  .panel > *{position:relative;z-index:1;}
 
-  .lamps{background:#05090C;border-radius:15px;padding:9px 8px;display:flex;flex-direction:column;gap:7px;
-    flex-shrink:0;box-shadow:inset 0 1px 0 rgba(255,255,255,.06), 0 2px 6px rgba(0,0,0,.4);}
-  .lamp{width:25px;height:25px;border-radius:50%;background:#1B252C;
-    box-shadow:inset 0 1px 2px rgba(0,0,0,.7);
-    transition:background .4s var(--ease), box-shadow .4s var(--ease), transform .4s var(--ease);}
-  .lamp.lit.risk{background:var(--risk);box-shadow:0 0 0 3px rgba(224,52,39,.18),0 0 20px 2px rgba(224,52,39,.8);transform:scale(1.06);}
-  .lamp.lit.care{background:var(--care);box-shadow:0 0 0 3px rgba(240,122,19,.18),0 0 20px 2px rgba(240,122,19,.8);transform:scale(1.06);}
-  .lamp.lit.watch{background:var(--watch);box-shadow:0 0 0 3px rgba(232,174,0,.18),0 0 20px 2px rgba(232,174,0,.8);transform:scale(1.06);}
-  .lamp.lit.safe{background:var(--safe);box-shadow:0 0 0 3px rgba(0,160,90,.18),0 0 20px 2px rgba(0,160,90,.75);transform:scale(1.06);}
+  .panel-top{display:flex;align-items:center;justify-content:space-between;gap:10px;
+    font-size:13px;letter-spacing:.04em;color:#8E9EA8;font-weight:700;}
+  .panel-top .ptitle{display:flex;align-items:center;gap:8px;}
+  .panel-top .ptitle i{width:6px;height:6px;border-radius:50%;background:var(--lvc,#4A5A64);
+    box-shadow:0 0 10px var(--lvc,transparent);transition:background .5s, box-shadow .5s;}
+  .stamp{background:rgba(255,255,255,.06);border:none;color:#93A3AD;font-size:11.5px;font-weight:600;
+    letter-spacing:.02em;padding:5px 10px;border-radius:999px;font-family:inherit;
+    transition:background .18s, color .18s;}
+  .stamp.back{color:#C3D0D7;background:rgba(255,255,255,.12);}
+  .stamp.back:active{background:rgba(255,255,255,.2);}
+
+  .panel-body{display:flex;gap:18px;align-items:center;margin-top:16px;}
+
+  .lamps{background:linear-gradient(180deg,#080D10,#03070A);border-radius:17px;
+    padding:11px 9px;display:flex;flex-direction:column;gap:8px;flex-shrink:0;
+    box-shadow:inset 0 1px 0 rgba(255,255,255,.07), 0 3px 10px rgba(0,0,0,.5);}
+  .lamp{width:26px;height:26px;border-radius:50%;position:relative;
+    background:radial-gradient(circle at 32% 28%, #2B3740, #141C21 70%);
+    box-shadow:inset 0 1px 3px rgba(0,0,0,.8), inset 0 -1px 1px rgba(255,255,255,.04);
+    transition:background .5s var(--ease), box-shadow .5s var(--ease), transform .5s var(--ease);}
+  /* 켜진 램프는 안쪽에서 빛이 번지듯 */
+  .lamp.lit{transform:scale(1.04);}
+  .lamp.lit::after{content:"";position:absolute;inset:4px 5px auto 5px;height:34%;border-radius:50%;
+    background:linear-gradient(180deg,rgba(255,255,255,.5),transparent);}
+  .lamp.lit.risk {background:radial-gradient(circle at 34% 30%, #FF7A6B, #E03427 62%);
+    box-shadow:0 0 0 3px rgba(224,52,39,.16), 0 0 26px 3px rgba(224,52,39,.85), inset 0 -2px 4px rgba(120,10,5,.6);}
+  .lamp.lit.care {background:radial-gradient(circle at 34% 30%, #FFB169, #F07A13 62%);
+    box-shadow:0 0 0 3px rgba(240,122,19,.16), 0 0 26px 3px rgba(240,122,19,.85), inset 0 -2px 4px rgba(140,60,4,.6);}
+  .lamp.lit.watch{background:radial-gradient(circle at 34% 30%, #FFE07A, #E8AE00 62%);
+    box-shadow:0 0 0 3px rgba(232,174,0,.16), 0 0 26px 3px rgba(232,174,0,.85), inset 0 -2px 4px rgba(130,96,0,.6);}
+  .lamp.lit.safe {background:radial-gradient(circle at 34% 30%, #5FE8A9, #00A05A 62%);
+    box-shadow:0 0 0 3px rgba(0,160,90,.16), 0 0 26px 3px rgba(0,190,110,.8), inset 0 -2px 4px rgba(0,80,45,.6);}
 
   .panel-copy{min-width:0;flex:1;}
   .hero-place{font-size:14.5px;color:#9AA9B2;font-weight:600;letter-spacing:-.02em;
     white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
-  .hero-line{font-size:40px;font-weight:800;letter-spacing:-.05em;margin:5px 0 9px;line-height:1.02;color:#fff;}
+  .hero-line{font-size:44px;font-weight:800;letter-spacing:-.055em;margin:4px 0 8px;
+    line-height:1;color:#fff;display:flex;align-items:baseline;gap:10px;
+    text-shadow:0 2px 18px var(--lvglow, transparent);transition:text-shadow .6s;}
+  .hero-line .lvpct{font-family:var(--mono);font-size:15px;font-weight:600;letter-spacing:-.03em;
+    color:#8FA0AA;text-shadow:none;}
   .hero-num{font-family:var(--mono);font-variant-numeric:tabular-nums;
-    font-size:18px;font-weight:700;color:#D8E2E8;letter-spacing:-.03em;}
-  .hero-sub{font-size:13.5px;color:#8E9DA6;margin-top:7px;line-height:1.5;}
-  .hero-sub b{font-family:var(--mono);color:#C6D2D8;font-weight:600;}
+    font-size:19px;font-weight:700;color:#DDE7EC;letter-spacing:-.035em;}
+  .hero-num .unit{font-family:var(--kr);font-size:13px;font-weight:600;color:#8FA0AA;margin-left:3px;}
+  .hero-sub{font-size:13px;color:#8E9DA6;margin-top:7px;line-height:1.5;}
 
-  .cause{display:flex;gap:5px;flex-wrap:wrap;margin-top:11px;position:relative;}
-  .cause span{font-size:10.5px;font-weight:600;background:rgba(255,255,255,.08);
-    color:#B9C6CD;border-radius:999px;padding:4px 9px;letter-spacing:-.01em;}
+  .cause{display:flex;gap:6px;flex-wrap:wrap;margin-top:13px;}
+  .cause span{font-size:11px;font-weight:600;background:rgba(255,255,255,.09);
+    color:#C2CFD6;border-radius:999px;padding:5px 10px;letter-spacing:-.01em;
+    border:1px solid rgba(255,255,255,.06);}
 
-  /* 판 안의 24시간 미니그래프 */
-  .spark{margin-top:14px;position:relative;}
-  .spark svg{display:block;width:100%;height:38px;}
+  /* 판 안의 24시간 그래프 */
+  .spark{margin-top:16px;}
+  .spark svg{display:block;width:100%;height:52px;overflow:visible;}
   .spark-ax{display:flex;justify-content:space-between;font-family:var(--mono);
-    font-size:9px;color:#5E6D76;margin-top:3px;letter-spacing:0;}
+    font-size:9.5px;color:#5E6D76;margin-top:5px;letter-spacing:0;}
 
   /* ── 경보 배너 ── */
-  .warn{display:none;gap:9px;align-items:center;margin-bottom:12px;padding:12px 15px;
-    border-radius:var(--r-md);font-size:13px;font-weight:600;line-height:1.45;letter-spacing:-.015em;
-    animation:slidein .3s var(--ease) both;}
+  .warn{display:none;gap:11px;align-items:center;margin-bottom:13px;padding:13px 15px;
+    border-radius:15px;font-size:13.5px;font-weight:700;line-height:1.45;letter-spacing:-.025em;
+    animation:slidein .3s var(--ease) both;position:relative;overflow:hidden;
+    box-shadow:0 3px 12px rgba(16,22,25,.06);}
+  .warn::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px;background:currentColor;opacity:.85;}
   .warn.show{display:flex;}
   .warn .beat{width:7px;height:7px;border-radius:50%;background:currentColor;flex-shrink:0;animation:beat 1.5s infinite;}
 
@@ -226,14 +283,17 @@ if(typeof L === 'undefined'){
   .place:last-child{border-bottom:none;}
   .place:active{background:color-mix(in srgb, var(--ink) 4%, var(--card));transform:scale(.988);}
   .place.sel{background:color-mix(in srgb, var(--ink) 3%, var(--card));}
-  .place .rankno{width:21px;height:21px;border-radius:7px;background:var(--paper);color:var(--ink-3);
-    font-family:var(--mono);font-size:11px;font-weight:700;display:grid;place-items:center;}
+  .place .rankno{width:24px;height:24px;border-radius:8px;background:var(--paper);color:var(--ink-3);
+    font-family:var(--mono);font-size:11.5px;font-weight:800;display:grid;place-items:center;
+    transition:background .2s, color .2s;}
+  .place:first-child .rankno{background:var(--ink);color:#fff;}
   .place .nm{font-weight:600;letter-spacing:-.03em;font-size:16px;}
   .place .ppl{font-family:var(--mono);font-size:12.5px;color:var(--ink-3);margin-top:4px;display:block;letter-spacing:-.02em;}
-  .place .meter{height:5px;border-radius:99px;background:var(--paper);margin-top:7px;overflow:hidden;}
-  .place .meter i{display:block;height:100%;border-radius:99px;transition:width .5s var(--ease);}
-  .chip{font-size:12.5px;font-weight:700;padding:6px 11px;border-radius:9px;white-space:nowrap;
-    display:flex;align-items:center;gap:5px;letter-spacing:-.01em;}
+  .place .meter{height:6px;border-radius:99px;background:var(--paper);margin-top:8px;overflow:hidden;}
+  .place .meter i{display:block;height:100%;border-radius:99px;transition:width .6s var(--ease);}
+  .chip{font-size:12.5px;font-weight:800;padding:7px 12px;border-radius:10px;white-space:nowrap;
+    display:flex;align-items:center;gap:5px;letter-spacing:-.02em;
+    box-shadow:inset 0 0 0 1px rgba(0,0,0,.04);}
   .chip .pctnum{font-family:var(--mono);opacity:.72;font-weight:600;}
   .chip.safe{background:var(--safe-soft);color:var(--safe-ink);}
   .chip.watch{background:var(--watch-soft);color:var(--watch-ink);}
@@ -281,7 +341,8 @@ if(typeof L === 'undefined'){
   .dow button:active{transform:scale(.93);}
   .dow button .dd{font-family:var(--mono);font-size:9.5px;font-weight:600;color:var(--ink-3);letter-spacing:-.04em;}
   .dow button.sat{color:#2A5C9A;} .dow button.sun{color:var(--risk-ink);}
-  .dow button.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .dow button.on{background:var(--ink);color:#fff;border-color:var(--ink);
+    box-shadow:0 3px 10px rgba(16,22,25,.22);transform:translateY(-1px);}
   .dow button.on .dd{color:rgba(255,255,255,.6);}
   .dow button.today{border-color:var(--road);}
   .pills{display:flex;gap:7px;overflow-x:auto;padding-bottom:3px;margin-bottom:12px;scrollbar-width:none;}
@@ -290,7 +351,8 @@ if(typeof L === 'undefined'){
     padding:8px 14px;font-size:12.5px;font-weight:600;white-space:nowrap;letter-spacing:-.02em;
     transition:transform .12s var(--ease);}
   .pill:active{transform:scale(.95);}
-  .pill.on{background:var(--ink);color:#fff;border-color:var(--ink);}
+  .pill.on{background:var(--ink);color:#fff;border-color:var(--ink);
+    box-shadow:0 3px 10px rgba(16,22,25,.22);}
 
   /* ── 시간대 표 ── */
   .hours{overflow:hidden;}
@@ -343,8 +405,10 @@ if(typeof L === 'undefined'){
   .switch.on i{transform:translateX(18px);}
 
   /* ── 오늘 흐름 ── */
-  .flow{display:grid;grid-template-columns:1fr;}
-  .flow > div{padding:15px 16px;}
+  .flow{display:grid;grid-template-columns:1fr;overflow:hidden;position:relative;}
+  .flow > div{padding:16px 17px;position:relative;}
+  .flow > div::before{content:"";position:absolute;left:0;top:14px;bottom:14px;width:3px;
+    border-radius:99px;background:var(--fc,var(--line));}
   .flow .fk{font-size:12.5px;color:var(--ink-3);font-weight:600;display:flex;align-items:center;gap:6px;}
   .flow .fk i{width:7px;height:7px;border-radius:50%;}
   .flow .fv{font-size:24px;font-weight:800;letter-spacing:-.04em;margin-top:7px;}
@@ -360,9 +424,18 @@ if(typeof L === 'undefined'){
   @keyframes spin{to{transform:rotate(360deg);}}
   .wx-live{display:inline-flex;align-items:center;gap:5px;color:var(--safe-ink);font-weight:700;}
   .wx-live i{width:5px;height:5px;border-radius:50%;background:var(--safe);animation:beat 2s ease-in-out infinite;}
-  .wx-now{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:16px 15px 6px;}
-  .wx-now-ic{font-size:32px;line-height:1;}
-  .wx-now-t{font-family:var(--mono);font-size:31px;font-weight:700;letter-spacing:-.05em;line-height:1;}
+  .wx-card{position:relative;overflow:hidden;}
+  .wx-card::before{content:"";position:absolute;inset:0 0 auto 0;height:130px;pointer-events:none;
+    background:linear-gradient(180deg,var(--wxtint,transparent),transparent);
+    transition:background .8s var(--ease);}
+  .wx-card.w-clear{--wxtint:rgba(255,196,60,.14);}
+  .wx-card.w-rain {--wxtint:rgba(23,87,143,.16);}
+  .wx-card.w-heat {--wxtint:rgba(240,122,19,.16);}
+  .wx-card.w-cold {--wxtint:rgba(90,140,200,.14);}
+  .wx-card > *{position:relative;}
+  .wx-now{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:18px 16px 6px;}
+  .wx-now-ic{font-size:38px;line-height:1;filter:drop-shadow(0 3px 8px rgba(16,22,25,.14));}
+  .wx-now-t{font-family:var(--mono);font-size:35px;font-weight:700;letter-spacing:-.05em;line-height:1;}
   .wx-now-t .deg{font-size:14px;color:var(--ink-3);margin-left:2px;letter-spacing:0;}
   .wx-now-sub{font-size:11.5px;color:var(--ink-3);margin-top:5px;line-height:1.45;letter-spacing:-.01em;}
   .wx-now-meta{display:flex;flex-direction:column;gap:4px;text-align:right;}
@@ -388,7 +461,9 @@ if(typeof L === 'undefined'){
   .wx-tagline.rain{background:var(--road-soft);color:var(--road);}
   .wx-tagline.heat{background:var(--care-soft);color:var(--care-ink);}
   .wx-tagline.cold{background:#E9EEF3;color:#3B5A76;}
-  .wx-note{font-size:11px;color:var(--risk-ink);line-height:1.55;padding:6px 16px 14px;}
+  .wx-note{font-size:11.5px;color:var(--ink-3);line-height:1.55;padding:9px 16px 14px;
+    display:flex;gap:7px;align-items:flex-start;}
+  .wx-note::before{content:"ⓘ";flex-shrink:0;opacity:.7;}
 
   /* ── 문안 · 안내 ── */
   .prose{padding:16px;font-size:12.5px;color:var(--ink-2);line-height:1.75;}
@@ -433,7 +508,7 @@ if(typeof L === 'undefined'){
   .sheet-body{overflow-y:auto;padding:0 18px calc(22px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;}
 
   /* ── 토스트 ── */
-  .toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 18px + env(safe-area-inset-bottom));
+  .toast{position:fixed;left:50%;bottom:calc(var(--nav-h) + 22px + env(safe-area-inset-bottom));
     transform:translate(-50%,14px);background:var(--ink);color:#fff;font-size:13px;font-weight:600;
     padding:11px 18px;border-radius:999px;z-index:90;opacity:0;pointer-events:none;
     box-shadow:0 6px 22px rgba(16,22,25,.3);transition:opacity .24s var(--ease), transform .24s var(--ease);
@@ -461,9 +536,11 @@ if(typeof L === 'undefined'){
     align-items:center;justify-content:center;gap:4px;font-size:9.5px;font-weight:700;
     position:relative;letter-spacing:-.01em;transition:color .2s;}
   .nav button.on{color:var(--ink);}
-  .nav button::before{content:"";position:absolute;top:7px;width:4px;height:4px;border-radius:50%;
-    background:var(--road);opacity:0;transform:translateY(-3px);transition:opacity .22s var(--ease), transform .22s var(--ease);}
-  .nav button.on::before{opacity:1;transform:translateY(0);}
+  .nav button::before{content:"";position:absolute;top:7px;width:42px;height:31px;border-radius:13px;
+    background:var(--ink);opacity:0;transform:scale(.7);
+    transition:opacity .26s var(--ease), transform .3s var(--ease);}
+  .nav button.on::before{opacity:.08;transform:scale(1);}
+  .nav svg{position:relative;z-index:1;}
   .nav svg{width:21px;height:21px;stroke:currentColor;fill:none;stroke-width:1.7;
     stroke-linecap:round;stroke-linejoin:round;transition:transform .2s var(--ease);}
   .nav button.on svg{transform:translateY(1px) scale(1.04);}
@@ -503,7 +580,7 @@ if(typeof L === 'undefined'){
 
       <div class="panel" id="signalPanel">
         <div class="panel-top">
-          <span>하양읍 혼잡 신호판</span>
+          <span class="ptitle"><i></i>하양읍 혼잡 신호판</span>
           <button id="panelStamp" class="stamp">—</button>
         </div>
         <div class="panel-body">
@@ -515,8 +592,10 @@ if(typeof L === 'undefined'){
           </div>
           <div class="panel-copy">
             <div class="hero-place" id="heroPlace">하양역</div>
-            <div class="hero-line" id="heroLine" role="status" aria-live="polite">확인 중</div>
-            <div class="hero-num" id="heroPeople">계산 중</div>
+            <div class="hero-line" role="status" aria-live="polite">
+              <span id="heroLine">확인 중</span><span class="lvpct" id="heroPct"></span>
+            </div>
+            <div class="hero-num"><span id="heroPeople">0</span><span class="unit">명 / 시간</span></div>
             <div class="hero-sub" id="heroSub">지금 상황을 읽고 있어요</div>
           </div>
         </div>
@@ -527,10 +606,10 @@ if(typeof L === 'undefined'){
         </div>
       </div>
 
-      <div class="sec-title">오늘 흐름 <small id="flowPoi">하양역</small></div>
+      <div class="sec-title"><span>오늘 흐름</span><small id="flowPoi">하양역</small></div>
       <div class="card" id="flowCard"></div>
 
-      <div class="sec-title" id="nowListTitle">지금 혼잡한 곳</div>
+      <div class="sec-title"><span id="nowListTitle">지금 혼잡한 곳</span></div>
       <div class="card places" id="placesNow"></div>
     </section>
 
@@ -558,7 +637,7 @@ if(typeof L === 'undefined'){
         </div>
       </div>
 
-      <div class="sec-title">이 시간대 혼잡한 곳</div>
+      <div class="sec-title"><span>이 시간대 혼잡한 곳</span></div>
       <div class="card places" id="placesMap"></div>
     </section>
 
@@ -572,13 +651,13 @@ if(typeof L === 'undefined'){
 
     <!-- ══ 예측 조건 ══ -->
     <section class="screen" id="screen-predict" role="tabpanel" aria-label="예측">
-      <div class="sec-title">하양읍 날씨
+      <div class="sec-title"><span>하양읍 날씨</span>
         <span class="title-right">
           <small id="wxStamp"></small>
           <button class="wx-refresh" id="wxRefresh" aria-label="날씨 새로고침">↻</button>
         </span>
       </div>
-      <div class="card">
+      <div class="card wx-card" id="wxCard">
         <div class="wx-now" id="wxNow">
           <div class="wx-now-ic" id="wxNowIc">·</div>
           <div class="wx-now-main">
@@ -595,14 +674,14 @@ if(typeof L === 'undefined'){
         <div class="wx-note err" id="wxNote" hidden></div>
       </div>
 
-      <div class="sec-title">오늘 자동 분석 <small id="autoStamp">—</small></div>
+      <div class="sec-title"><span>오늘 자동 분석</span><small id="autoStamp">—</small></div>
       <div class="card" id="autoCard"></div>
 
     </section>
 
     <!-- ══ 전달·안내 ══ -->
     <section class="screen" id="screen-info" role="tabpanel" aria-label="전달">
-      <div class="sec-title">주민에게 전달하기</div>
+      <div class="sec-title"><span>주민에게 전달하기</span></div>
       <div class="card">
         <div class="msg-head"><span class="lb">카카오 알림톡 · 문자 문안</span><button class="copy-btn" id="copyMsg">복사</button></div>
         <div class="msg-preview" id="msgPreview"></div>
@@ -1668,7 +1747,7 @@ async function loadWeather(manual){
     const fallback = wxSource === 'snapshot'
       ? '저장된 기상청 예보(' + WX_SNAPSHOT.issued + ' ' + (WX_SNAPSHOT.issuedTime||'') + ' 발표)'
       : '대구·경산 기후 평년값';
-    note.innerHTML = `날씨 서버에 연결하지 못했습니다. 지금은 ${fallback}으로 표시 중이에요.
+    note.innerHTML = `실시간 날씨를 기다리는 중이에요. 지금은 ${fallback} 기준으로 표시합니다.
       <button class="linkbtn" id="wxHelp">연결이 안 되는 이유</button>`;
     const help = $('wxHelp');
     if(help) help.addEventListener('click', () => {
@@ -1732,6 +1811,10 @@ function buildWxNow(){
   $('wxNowFeel').textContent = Math.round(n.feel) + '°';
   $('wxNowWind').textContent = (n.wind || 0).toFixed(1) + 'm/s';
 
+  const card = $('wxCard');
+  if(card) card.className = 'card wx-card w-' + wxToCond({ code:n.weather_code, prcp:n.precipitation,
+    tmax:(WX.days[WX.todayIdx] || {}).tmax || n.temperature_2m,
+    tmin:(WX.days[WX.todayIdx] || {}).tmin || n.temperature_2m });
   const hhmm = new Date().toLocaleTimeString('ko-KR', {hour:'2-digit', minute:'2-digit', hour12:false});
   const when = n.live
     ? (wxSource === 'live' ? `${hhmm} 실황` : `${hhmm} 기준`)
@@ -2025,9 +2108,15 @@ function render(){
   const lv = levelFor(pct);
 
   LEVELS.forEach(l => { $('lamp-' + l.key).className = 'lamp' + (l.key === lv.key ? ' lit ' + l.key : ''); });
+  /* 판 전체가 등급 색을 머금도록 */
+  const panel = $('signalPanel');
+  panel.className = 'panel lv-' + lv.key;
+  panel.style.setProperty('--lvc', lv.color);
+  panel.style.setProperty('--lvglow', lv.color + '55');
+  $('heroPct').textContent = pct + '%';
   $('heroPlace').textContent = selPoi.name;
   $('heroLine').textContent = lv.label;
-  countUp($('heroPeople'), peopleFor(selPoi, selectedHour), '명 / 시간');
+  countUp($('heroPeople'), peopleFor(selPoi, selectedHour), '');
   /* 신호판 상단 — 지금이 아니면 눌러서 되돌릴 수 있습니다 */
   const stamp = $('panelStamp');
   stamp.textContent = isNow
@@ -2075,7 +2164,7 @@ function render(){
     }
   } else { warn.classList.remove('show'); notifiedKey = null; }
 
-  $('nowListTitle').textContent = (liveMode ? '지금' : hourLabel(selectedHour)) + ' 혼잡한 곳';
+  $('nowListTitle').textContent = (isNow ? '지금' : hourLabel(selectedHour)) + ' 혼잡한 곳';
   buildPlaces($('placesNow'), selectedHour);
   buildPlaces($('placesMap'), selectedHour);
 
@@ -2152,7 +2241,7 @@ function buildFlow(poi){
   const lv = levelFor(congestionFor(poi, hi));
   box.className = 'card flow one';
   box.innerHTML = `
-    <div>
+    <div style="--fc:${lv.color}">
       <div class="fk"><i style="background:${lv.color}"></i>가장 붐빌 때</div>
       <div class="fv">${hourLabel(hi)}</div>
       <div class="fs">${fmt(peopleFor(poi, hi))}명/시간 · ${lv.label}</div>
@@ -2312,29 +2401,56 @@ function countUp(el, to, suffix){
 /* 신호판 24시간 미니그래프 */
 function drawSpark(poi){
   const svg = $('heroSpark'); if(!svg) return;
-  const W = 240, H = 38, n = 24;
+  const W = 240, H = 52, n = 24, PT = 6, PB = 5;
   const vals = [];
   for(let h = 0; h < n; h++) vals.push(congestionFor(poi, h));
   const mx = Math.max(...vals, 100);
   const x = i => i / (n - 1) * W;
-  const y = v => H - 3 - (v / mx) * (H - 7);
-  let d = '';
-  vals.forEach((v, i) => { d += (i ? ' L' : 'M') + x(i).toFixed(1) + ' ' + y(v).toFixed(1); });
+  const y = v => H - PB - (v / mx) * (H - PT - PB);
+
+  /* 모서리를 부드럽게 이어 그립니다 */
+  let d = `M${x(0).toFixed(1)} ${y(vals[0]).toFixed(1)}`;
+  for(let i = 0; i < n - 1; i++){
+    const x0 = x(i), y0 = y(vals[i]), x1 = x(i+1), y1 = y(vals[i+1]);
+    const cx = (x0 + x1) / 2;
+    d += ` C${cx.toFixed(1)} ${y0.toFixed(1)}, ${cx.toFixed(1)} ${y1.toFixed(1)}, ${x1.toFixed(1)} ${y1.toFixed(1)}`;
+  }
   const area = d + ` L${W} ${H} L0 ${H} Z`;
   const cur = selectedHour;
   const lv = levelFor(vals[cur]);
+  const cx = x(cur), cy = y(vals[cur]);
+
+  /* 하루 중 가장 붐비는 시각도 표시 */
+  let peak = 0;
+  for(let i = 1; i < n; i++) if(vals[i] > vals[peak]) peak = i;
+
   svg.innerHTML = `
-    <defs><linearGradient id="sparkg" x1="0" y1="0" x2="0" y2="1">
-      <stop offset="0%" stop-color="${lv.color}" stop-opacity=".38"/>
-      <stop offset="100%" stop-color="${lv.color}" stop-opacity="0"/>
-    </linearGradient></defs>
-    <path d="${area}" fill="url(#sparkg)"/>
-    <path d="${d}" fill="none" stroke="${lv.color}" stroke-width="1.6"
-          stroke-linejoin="round" stroke-linecap="round" opacity=".92"/>
-    <line x1="${x(cur).toFixed(1)}" y1="0" x2="${x(cur).toFixed(1)}" y2="${H}"
-          stroke="#ffffff" stroke-opacity=".22" stroke-width="1"/>
-    <circle cx="${x(cur).toFixed(1)}" cy="${y(vals[cur]).toFixed(1)}" r="3"
-            fill="${lv.color}" stroke="#0D1216" stroke-width="1.5"/>`;
+    <defs>
+      <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0%" stop-color="${lv.color}" stop-opacity=".45"/>
+        <stop offset="55%" stop-color="${lv.color}" stop-opacity=".12"/>
+        <stop offset="100%" stop-color="${lv.color}" stop-opacity="0"/>
+      </linearGradient>
+      <linearGradient id="sl" x1="0" y1="0" x2="1" y2="0">
+        <stop offset="0%" stop-color="${lv.color}" stop-opacity=".45"/>
+        <stop offset="${(cur / (n - 1) * 100).toFixed(0)}%" stop-color="${lv.color}" stop-opacity="1"/>
+        <stop offset="100%" stop-color="${lv.color}" stop-opacity=".45"/>
+      </linearGradient>
+      <filter id="sglow" x="-20%" y="-60%" width="140%" height="260%">
+        <feGaussianBlur stdDeviation="2.4" result="bl"/>
+        <feMerge><feMergeNode in="bl"/><feMergeNode in="SourceGraphic"/></feMerge>
+      </filter>
+    </defs>
+    <path d="${area}" fill="url(#sg)"/>
+    <path d="${d}" fill="none" stroke="url(#sl)" stroke-width="2.1"
+          stroke-linejoin="round" stroke-linecap="round" filter="url(#sglow)"/>
+    ${peak !== cur ? `<circle cx="${x(peak).toFixed(1)}" cy="${y(vals[peak]).toFixed(1)}" r="2.2"
+          fill="#fff" opacity=".38"/>` : ''}
+    <line x1="${cx.toFixed(1)}" y1="0" x2="${cx.toFixed(1)}" y2="${H}"
+          stroke="#ffffff" stroke-opacity=".18" stroke-width="1" stroke-dasharray="2 3"/>
+    <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="7" fill="${lv.color}" opacity=".22"/>
+    <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="3.4"
+            fill="${lv.color}" stroke="#0E1418" stroke-width="1.8"/>`;
 }
 
 /* 당겨서 새로고침 */
