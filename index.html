@@ -316,6 +316,8 @@ if(typeof L === 'undefined'){
   #tileWarn{display:none;position:absolute;left:10px;right:10px;bottom:10px;z-index:5;
     background:var(--risk-soft);color:var(--risk-ink);border-radius:10px;padding:9px 12px;
     font-size:11.5px;font-weight:600;line-height:1.5;}
+  .node-legend{margin-top:2px;}
+  .node-legend small{color:var(--ink-3);font-size:10.5px;margin-left:2px;}
   .legend{display:flex;gap:12px;flex-wrap:wrap;margin-top:11px;padding:0 5px;font-size:11px;color:var(--ink-2);}
   .legend span{display:flex;align-items:center;gap:5px;font-weight:600;}
   .sw{width:8px;height:8px;border-radius:50%;}
@@ -626,6 +628,12 @@ if(typeof L === 'undefined'){
           <span><i class="sw" style="background:#F07A13"></i>주의</span>
           <span><i class="sw" style="background:#E03427"></i>위험</span>
         </div>
+        <div class="legend node-legend">
+          <span><i class="sw" style="background:#4A6FE3"></i>학교</span>
+          <span><i class="sw" style="background:#7C8CA3"></i>주거</span>
+          <span><i class="sw" style="background:#8A5FD1"></i>공공</span>
+          <small>· 참고 위치, 혼잡도 미계산</small>
+        </div>
       </div>
 
       <div class="card timebar">
@@ -747,13 +755,32 @@ if(typeof L === 'undefined'){
    ※ lat/lng는 대략치입니다. openstreetmap.org에서 해당 지점을
      우클릭 → "Show address" 하면 정확한 좌표가 나오니 바꿔 넣으세요.
    ───────────────────────────────────────────── */
+/* 참고용 노드 8곳 — 학교·주거·공공시설. 좌표는 사용자 제공값입니다.
+   ⚠️ bizmap 실측이 없어 혼잡도 계산에는 포함하지 않고,
+   지도에 위치만 표시하는 참고 마커입니다. */
+const EXTRA_NODES = [
+  { name:'하주초등학교',   type:'학교', lat:35.9196762, lng:128.8124912 },
+  { name:'무학고등학교',   type:'학교', lat:35.9194220, lng:128.8165190 },
+  { name:'하양초등학교',   type:'학교', lat:35.9122045, lng:128.8192442 },
+  { name:'우미린 에코포레', type:'주거', lat:35.9195799, lng:128.8074372 },
+  { name:'금호어울림',     type:'주거', lat:35.9184053, lng:128.8034677 },
+  { name:'우미린 더 센트럴', type:'주거', lat:35.9172833, lng:128.8078438 },
+  { name:'LH 천년나무 4단지', type:'주거', lat:35.9208670, lng:128.8091592 },
+  { name:'하양읍 행정복지센터', type:'공공', lat:35.9123527, lng:128.8122927 }
+];
+const NODE_COLOR = { '학교':'#4A6FE3', '주거':'#7C8CA3', '공공':'#8A5FD1' };
+
 const POIS_BASE = [
   { id:'station', name:'하양역 · 대경로', short:'하양역',
     lat:35.910068, lng:128.818376,
-    weekday:[0.15,0.10,0.08,0.08,0.10,0.25,0.55,1.20,1.55,0.90,0.75,0.80,
-             1.00,0.85,0.75,0.80,0.95,1.35,1.60,1.20,0.75,0.45,0.30,0.20],
-    weekend:[0.12,0.08,0.06,0.06,0.08,0.12,0.20,0.35,0.55,0.70,0.85,0.95,
-             1.10,1.05,0.95,0.90,0.85,0.80,0.75,0.60,0.45,0.30,0.20,0.15] },
+    /* 시간대 곡선: bizmap 실측 53개 지점 중 대경로 상업가 6곳(1·2·5·6·7·8번 —
+       CU·다이소·올리브영·신금락원룸·행정복지센터 인근)의 인구가중평균 시간대 분포에 맞춰
+       구간별(아침/오전/점심/오후/저녁/밤/새벽) 평균을 실측치로 스케일링했습니다.
+       구간 안의 시간별 굴곡은 여전히 추정입니다. */
+    weekday:[0.72,0.48,0.38,0.38,0.48,1.20,0.41,0.91,1.17,1.22,1.02,1.08,
+             1.38,1.17,1.03,1.06,1.26,1.78,1.82,1.37,0.85,1.33,0.89,0.59],
+    weekend:[0.84,0.56,0.42,0.42,0.56,0.84,0.45,0.79,1.25,0.93,1.13,1.26,
+             1.27,1.21,1.10,1.45,1.37,1.29,1.69,1.35,1.01,1.30,0.87,0.65] },
   { id:'market', name:'하양전통시장 일대', short:'전통시장',
     lat:35.9156, lng:128.8196,   /* 하양시장·꿈바우시장 일대 중심 */
     weekday:[0.05,0.03,0.03,0.03,0.05,0.10,0.30,0.55,0.85,1.15,1.35,1.40,
@@ -762,10 +789,14 @@ const POIS_BASE = [
              1.60,1.45,1.25,1.10,0.95,0.75,0.45,0.25,0.12,0.06,0.05,0.05] },
   { id:'university', name:'대구가톨릭대 정문 일대', short:'대가대',
     lat:35.91118, lng:128.80818,
-    weekday:[0.05,0.03,0.03,0.03,0.05,0.10,0.30,0.90,1.55,1.35,1.15,1.10,
-             1.40,1.20,1.05,1.10,1.30,1.45,0.90,0.45,0.25,0.15,0.08,0.05],
-    weekend:[0.05,0.03,0.03,0.03,0.03,0.05,0.08,0.12,0.20,0.30,0.40,0.50,
-             0.55,0.50,0.45,0.40,0.35,0.30,0.25,0.20,0.15,0.10,0.08,0.05] }
+    /* 시간대 곡선: bizmap 실측 53개 지점 중 캠퍼스 인접 6곳(3·4·9·10·19·20번 —
+       무용관·체육관·성라이문도관·세미너리관·효성캠퍼스 인근)의 인구가중평균 분포로
+       구간별 평균을 실측치에 맞춰 스케일링했습니다.
+       ⚠️ 이 실측은 일반 보행자 전체를 세므로, 순수 학생 등하교 비중과는 다를 수 있습니다. */
+    weekday:[0.62,0.37,0.37,0.37,0.62,1.24,0.39,1.16,2.00,1.24,1.06,1.01,
+             1.34,1.15,1.00,1.11,1.31,1.46,2.20,1.10,0.61,1.22,0.65,0.41],
+    weekend:[0.81,0.49,0.49,0.49,0.49,0.81,0.71,1.06,1.77,0.83,1.10,1.38,
+             1.28,1.16,1.05,1.48,1.29,1.11,1.63,1.30,0.98,0.99,0.79,0.49] }
 ];
 
 /* ─────────────────────────────────────────────
@@ -809,11 +840,15 @@ const DAYTYPE_SCALE = {
   university: { weekday:1.00, weekend:0.22 }
 };
 
-/* 요일 지수 — 평일끼리, 주말끼리 각각 평균 1이 되도록 정규화해서 씁니다 */
+/* 요일 지수 — 평일끼리, 주말끼리 각각 평균 1이 되도록 정규화해서 씁니다.
+   station·university: bizmap 실측 53개 지점 중 대경로·캠퍼스 인접 표본의
+   인구가중평균 요일별 비중 (하양읍_유동인구_정리-53.xlsx).
+   market: 이 조사가 '금락리 116-171' 반경 중심이라 전통시장을 포함하지 않아
+   ⚠️ 여전히 추정치입니다. 시장 전용 조회가 생기면 교체 대상입니다. */
 const DOW_RAW = {   /* 일 월 화 수 목 금 토 */
-  station:    [0.80, 1.00, 0.98, 0.98, 1.00, 1.10, 0.95],
-  market:     [0.82, 0.94, 0.96, 0.96, 1.00, 1.14, 1.20],
-  university: [0.55, 1.04, 1.03, 1.03, 1.02, 0.88, 0.60]
+  station:    [0.94, 1.02, 0.98, 0.91, 1.10, 1.06, 0.99],
+  market:     [0.82, 0.94, 0.96, 0.96, 1.00, 1.14, 1.20],   /* ⚠️ 추정 */
+  university: [0.84, 1.08, 1.08, 0.89, 1.16, 1.04, 0.91]
 };
 const DOW_INDEX = (() => {
   const out = {};
@@ -1866,8 +1901,9 @@ const poiMarkers = {};
 
 /* 세 지점이 화면에 꽉 차게 — 지도를 열면 이 범위로 맞춥니다 */
 const POI_BOUNDS = (() => {
-  const lat = POIS.map(p => p.lat), lng = POIS.map(p => p.lng);
-  const pl = 0.0016, pn = 0.0022;   /* 마커·라벨이 잘리지 않을 만큼의 여백 */
+  const all = [...POIS, ...EXTRA_NODES];
+  const lat = all.map(p => p.lat), lng = all.map(p => p.lng);
+  const pl = 0.0018, pn = 0.0024;   /* 마커·라벨이 잘리지 않을 만큼의 여백 */
   return [[Math.min(...lat) - pl, Math.min(...lng) - pn],
           [Math.max(...lat) + pl, Math.max(...lng) + pn]];
 })();
@@ -1891,7 +1927,8 @@ function initSvgMap(){
   const boxW = el.clientWidth || 400, boxH = el.clientHeight || 300;
   const VW = 700, VH = Math.round(VW * boxH / boxW);
 
-  const lats = POIS.map(p => p.lat), lngs = POIS.map(p => p.lng);
+  const lats = [...POIS, ...EXTRA_NODES].map(p => p.lat);
+  const lngs = [...POIS, ...EXTRA_NODES].map(p => p.lng);
   let S = Math.min(...lats), N = Math.max(...lats);
   let W = Math.min(...lngs), E = Math.max(...lngs);
   /* 지점들 주변으로 여유를 준 뒤, 화면 비율에 맞게 넓은 쪽을 늘립니다 */
@@ -1938,6 +1975,11 @@ function initSvgMap(){
         <line x1="${barW}" y1="-5" x2="${barW}" y2="5" stroke="#8B96A6" stroke-width="2.5"/>
         <text x="${barW/2}" y="-9" text-anchor="middle" style="font-size:13px;fill:#8B96A6">1km</text>
       </g>
+      ${EXTRA_NODES.map(n => `
+        <g opacity="0.85">
+          <circle cx="${px(n.lng)}" cy="${py(n.lat)}" r="5" fill="${NODE_COLOR[n.type]}"
+                  stroke="#fff" stroke-width="1.4"/>
+        </g>`).join('')}
       <text x="${VW - 14}" y="${VH - 12}" text-anchor="end" style="font-size:12px;fill:#95A0B1">오프라인 약식 지도 · 실제 좌표 기준</text>
     </svg>`;
 
@@ -1986,6 +2028,14 @@ function initMap(){
     m.bindTooltip('', {permanent:true, direction:'top', offset:[0,-10], className:'poi-tip'});
     m.on('click', () => { selectedPoiId = poi.id; render(); });
     poiMarkers[poi.id] = m;
+  });
+
+  /* 참고 노드 8곳 — 작은 점만, 혼잡도 클릭 동작 없음 */
+  EXTRA_NODES.forEach(n => {
+    L.circleMarker([n.lat, n.lng], {
+      radius: 5, color:'#fff', weight: 1.4,
+      fillColor: NODE_COLOR[n.type], fillOpacity: 0.9
+    }).addTo(leafMap).bindTooltip(`${n.name} · ${n.type}`, { direction:'top', offset:[0,-6] });
   });
 
   refreshMap(60); refreshMap(400);
