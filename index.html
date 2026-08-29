@@ -91,7 +91,11 @@ if(typeof L === 'undefined'){
     .hrow.future .track{background:repeating-linear-gradient(90deg,#242D31 0 5px,#1A2124 5px 7px);}
     .map-frame,.leaflet-container,#leafmap{background:#1E272B;}
     .leaflet-control-attribution{background:rgba(26,33,36,.85);color:#889499;}
-    .poi-tip{background:rgba(26,33,36,.95);border-color:var(--line);}
+    /* 학교·참고 노드 라벨은 핵심 지점보다 작고 은은하게 */
+  .sch-tip{font-size:10.5px !important;padding:2px 6px !important;}
+  .node-tip{font-size:10px !important;padding:2px 6px !important;opacity:.9;}
+  .node-tip b{font-weight:700;}
+  .poi-tip{background:rgba(26,33,36,.95);border-color:var(--line);}
     .lamp{background:#232E34;}
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
@@ -142,6 +146,10 @@ if(typeof L === 'undefined'){
     z-index:50;opacity:0;pointer-events:none;transform:translateY(-8px) scale(.97);
     transition:opacity .18s, transform .2s var(--ease);}
   .pick-menu.on{opacity:1;pointer-events:auto;transform:none;}
+  .pick-menu{max-height:min(62vh, 460px);overflow-y:auto;}
+  .mgrp{font-size:10.5px;font-weight:700;color:var(--ink-3);letter-spacing:.02em;
+    padding:9px 11px 4px;}
+  .mgrp:first-child{padding-top:4px;}
   .pick-menu button{display:flex;width:100%;align-items:center;gap:9px;border:none;background:none;
     padding:10px 11px;border-radius:11px;font-size:13.5px;font-weight:600;color:var(--ink-2);
     text-align:left;letter-spacing:-.025em;}
@@ -347,6 +355,7 @@ if(typeof L === 'undefined'){
     box-shadow:0 3px 10px rgba(16,22,25,.22);transform:translateY(-1px);}
   .dow button.on .dd{color:rgba(255,255,255,.6);}
   .dow button.today{border-color:var(--road);}
+  /* 학교·주거 칩은 핵심 3곳보다 작고 연하게 */
   .pills{display:flex;gap:7px;overflow-x:auto;padding-bottom:3px;margin-bottom:12px;scrollbar-width:none;}
   .pills::-webkit-scrollbar{display:none;}
   .pill{border:1px solid var(--line);background:var(--card);color:var(--ink-2);border-radius:999px;
@@ -629,10 +638,9 @@ if(typeof L === 'undefined'){
           <span><i class="sw" style="background:#E03427"></i>위험</span>
         </div>
         <div class="legend node-legend">
-          <span><i class="sw" style="background:#4A6FE3"></i>학교</span>
-          <span><i class="sw" style="background:#7C8CA3"></i>주거</span>
-          <span><i class="sw" style="background:#8A5FD1"></i>공공</span>
-          <small>· 참고 위치, 혼잡도 미계산</small>
+          <span><i class="sw" style="background:#4A6FE3"></i>학교 <small>학사일정 반영</small></span>
+          <span><i class="sw" style="background:#7C8CA3"></i>주거 <small>실측 반영</small></span>
+          <span><i class="sw" style="background:#8A5FD1"></i>공공 <small>운영시간</small></span>
         </div>
       </div>
 
@@ -651,9 +659,9 @@ if(typeof L === 'undefined'){
 
     <!-- ══ 시간대 ══ -->
     <section class="screen" id="screen-hours" role="tabpanel" aria-label="요일 예상">
-      <div class="pills" id="poiPills"></div>
 
       <div class="dow" id="dayToggle"></div>
+      <div class="sec-title"><span id="hoursTitle">하양역</span><small id="hoursKind"></small></div>
       <div class="card hours" id="hoursList"></div>
     </section>
 
@@ -759,15 +767,57 @@ if(typeof L === 'undefined'){
    ⚠️ bizmap 실측이 없어 혼잡도 계산에는 포함하지 않고,
    지도에 위치만 표시하는 참고 마커입니다. */
 const EXTRA_NODES = [
-  { name:'하주초등학교',   type:'학교', lat:35.9196762, lng:128.8124912 },
-  { name:'무학고등학교',   type:'학교', lat:35.9194220, lng:128.8165190 },
-  { name:'하양초등학교',   type:'학교', lat:35.9122045, lng:128.8192442 },
-  { name:'우미린 에코포레', type:'주거', lat:35.9195799, lng:128.8074372 },
-  { name:'금호어울림',     type:'주거', lat:35.9184053, lng:128.8034677 },
-  { name:'우미린 더 센트럴', type:'주거', lat:35.9172833, lng:128.8078438 },
-  { name:'LH 천년나무 4단지', type:'주거', lat:35.9208670, lng:128.8091592 },
-  { name:'하양읍 행정복지센터', type:'공공', lat:35.9123527, lng:128.8122927 }
+  /* 학교는 K12_SCHOOLS 로 옮겨져 학사일정·학생수와 연동된 마커로 따로 그려집니다.
+
+     주거 4곳: bizmap 실측 53개 지점 중 그 단지가 주소 설명에 직접 언급된 지점을
+     인구가중평균해 일 유동인구와 시간대·요일 패턴을 뽑았습니다.
+     daily = 그 단지 일대의 일 유동인구(명/일), bin = 7구간 시간당 지수(평균 1),
+     dow = 요일 비중(일~토). homes 는 검색 확인한 세대수(참고용).
+     ⚠️ 단지 정문 실측이 아니라 '단지 일대 골목' 실측입니다. */
+  { name:'우미린 에코포레',   type:'주거', lat:35.9195799, lng:128.8074372, homes:787,
+    daily:1226, src:'bizmap #30',
+    bin:[1.15,1.04,0.90,1.26,1.35,1.31,0.49],
+    dow:[0.131,0.138,0.160,0.150,0.129,0.134,0.157] },
+  { name:'금호어울림',       type:'주거', lat:35.9184053, lng:128.8034677, homes:626,
+    daily:353,  src:'bizmap #21',
+    bin:[0.74,1.32,0.82,1.22,1.50,1.14,0.62],
+    dow:[0.123,0.187,0.058,0.249,0.216,0.080,0.086] },
+  { name:'우미린 더 센트럴',  type:'주거', lat:35.9172833, lng:128.8078438, homes:737,
+    daily:824,  src:'bizmap #28·33·34',
+    bin:[1.13,1.00,0.95,1.20,1.44,1.27,0.51],
+    dow:[0.148,0.138,0.156,0.130,0.157,0.138,0.134] },
+  { name:'LH 천년나무 4단지', type:'주거', lat:35.9208670, lng:128.8091592, homes:723,
+    daily:2490, src:'bizmap #31·32',
+    bin:[1.37,1.10,1.04,1.47,1.52,1.09,0.21],
+    dow:[0.141,0.143,0.133,0.146,0.142,0.147,0.149] },
+  /* 행정복지센터 — 평일 09~18시만 운영(주말·공휴일 휴무).
+     ⚠️ 방문객 수 자료가 없어 인원은 계산하지 않고, '운영 중'인지만 표시합니다. */
+  { name:'하양읍 행정복지센터', type:'공공', lat:35.9123527, lng:128.8122927,
+    openHours:[9,18], weekdayOnly:true }
 ];
+
+/* 7구간(아침~새벽) 지수를 24시간으로 펼칩니다 */
+const BIN_HOURS = [[6,7,8],[9,10,11],[12,13,14],[15,16,17],[18,19,20],[21,22,23],[0,1,2,3,4,5]];
+
+/* 지금 문을 열었는지 — 운영시간이 정해진 노드만 판정합니다 */
+function nodeOpen(n, hour, dow){
+  if(!n.openHours) return null;
+  const h = (hour == null) ? selectedHour : hour;
+  const d = (dow  == null) ? selectedDow  : dow;
+  if(n.weekdayOnly && (d === 0 || d === 6)) return false;
+  return h >= n.openHours[0] && h < n.openHours[1];
+}
+
+/* 참고 노드의 '지금 이 시각' 유동인구 — 실측 daily 가 있는 곳만 계산합니다 */
+function nodeFlow(n, hour, dow){
+  if(!n.daily) return null;
+  const h = (hour == null) ? selectedHour : hour;
+  const d = (dow  == null) ? selectedDow  : dow;
+  let bi = 0;
+  BIN_HOURS.forEach((hs, i) => { if(hs.includes(h)) bi = i; });
+  const dowIdx = n.dow[d] / (1 / 7);        /* 요일 비중을 지수로 (평균 1) */
+  return Math.round(n.daily / 24 * n.bin[bi] * dowIdx);
+}
 const NODE_COLOR = { '학교':'#4A6FE3', '주거':'#7C8CA3', '공공':'#8A5FD1' };
 
 const POIS_BASE = [
@@ -782,11 +832,14 @@ const POIS_BASE = [
     weekend:[0.84,0.56,0.42,0.42,0.56,0.84,0.45,0.79,1.25,0.93,1.13,1.26,
              1.27,1.21,1.10,1.45,1.37,1.29,1.69,1.35,1.01,1.30,0.87,0.65] },
   { id:'market', name:'하양전통시장 일대', short:'전통시장',
-    lat:35.9156, lng:128.8196,   /* 하양시장·꿈바우시장 일대 중심 */
-    weekday:[0.05,0.03,0.03,0.03,0.05,0.10,0.30,0.55,0.85,1.15,1.35,1.40,
-             1.45,1.25,1.05,1.00,0.95,0.85,0.55,0.30,0.15,0.08,0.05,0.05],
-    weekend:[0.05,0.03,0.03,0.03,0.05,0.08,0.20,0.40,0.70,1.05,1.40,1.55,
-             1.60,1.45,1.25,1.10,0.95,0.75,0.45,0.25,0.12,0.06,0.05,0.05] },
+    lat:35.9158, lng:128.8190,   /* 하양꿈바우시장 일대 중심 (bizmap 조회 지점) */
+    /* 시간대 곡선: bizmap 실측 3개 지점(하양꿈바우시장 중심 · 금락리 373-10 남측·북측)의
+       인구가중평균으로 7구간 평균을 맞췄습니다.
+       구간 안의 시간별 굴곡은 시장 상권 특성을 반영한 추정입니다. */
+    weekday:[0.43,0.36,0.29,0.29,0.36,0.65,0.61,0.88,1.14,1.25,1.46,1.46,
+             1.48,1.48,1.27,1.23,1.36,1.29,1.76,1.53,1.30,0.82,0.67,0.64],
+    weekend:[0.43,0.36,0.29,0.29,0.36,0.65,0.57,0.88,1.19,1.25,1.46,1.46,
+             1.48,1.48,1.27,1.23,1.36,1.29,1.76,1.53,1.30,0.82,0.67,0.64] },
   { id:'university', name:'대구가톨릭대 정문 일대', short:'대가대',
     lat:35.91118, lng:128.80818,
     /* 시간대 곡선: bizmap 실측 53개 지점 중 캠퍼스 인접 6곳(3·4·9·10·19·20번 —
@@ -814,11 +867,11 @@ const BASE_COMPONENTS = {
     { k:'대경로 지상 보행',  v: 886, s:'bizmap 1,486명 중 통학 외 (상가·버스·주민)' },
     { k:'초·중·고 통학',    v: 600, s:'bizmap 1,486명 중 통학 몫 40% 추정', school:true }
   ],
-  /* ── 하양전통시장 일대 ──
-     ⚠️ bizmap 미조회. 하양역 대비 규모로 잡은 추정치입니다.
-     시장 구간을 bizmap에서 조회하면 이 값을 바로 교체할 수 있습니다. */
+  /* ── 하양전통시장 일대 (하양꿈바우시장) — bizmap 실측 3지점 합계 729명/일.
+     조회 반경이 시장 골목 일부만 덮으므로, 시장 전체 상권으로는 더 넓게 잡습니다.
+     (3지점 × 약 1.4배 = 1,020) ⚠️ 배수 1.4는 추정입니다. */
   market: [
-    { k:'시장 일대 통행',    v:1400, s:'⚠️ 추정 — bizmap 시장 구간 조회 필요' },
+    { k:'시장 일대 통행',    v:1020, s:'bizmap 실측 3지점 729명 × 상권 확장 1.4' },
     { k:'하교 동선',        v: 250, s:'중·고생 2,203명 중 시장 경유분 추정', school:true }
   ],
   /* ── 대구가톨릭대 정문 일대 ──
@@ -843,11 +896,10 @@ const DAYTYPE_SCALE = {
 /* 요일 지수 — 평일끼리, 주말끼리 각각 평균 1이 되도록 정규화해서 씁니다.
    station·university: bizmap 실측 53개 지점 중 대경로·캠퍼스 인접 표본의
    인구가중평균 요일별 비중 (하양읍_유동인구_정리-53.xlsx).
-   market: 이 조사가 '금락리 116-171' 반경 중심이라 전통시장을 포함하지 않아
-   ⚠️ 여전히 추정치입니다. 시장 전용 조회가 생기면 교체 대상입니다. */
+   market: 하양꿈바우시장 일대 bizmap 실측 3지점의 인구가중평균. */
 const DOW_RAW = {   /* 일 월 화 수 목 금 토 */
   station:    [0.94, 1.02, 0.98, 0.91, 1.10, 1.06, 0.99],
-  market:     [0.82, 0.94, 0.96, 0.96, 1.00, 1.14, 1.20],   /* ⚠️ 추정 */
+  market:     [0.91, 1.16, 0.86, 1.09, 1.32, 0.80, 0.87],   /* bizmap 실측 3지점 가중평균 */
   university: [0.84, 1.08, 1.08, 0.89, 1.16, 1.04, 0.91]
 };
 const DOW_INDEX = (() => {
@@ -934,14 +986,23 @@ function weatherFactorAuto(poiId, hour){
    나머지는 학급 규모로 잡은 추정치 → 학교알리미에서 확인 후 교체
    ───────────────────────────────────────────── */
 const K12_SCHOOLS = [
-  /* 학생수·교원수: 학교알리미(schoolinfo.go.kr) 공시값 */
-  { name:'무학고',   lv:'고', students:605, staff:54, cal:'muhakH',   src:'확인' },
-  { name:'무학중',   lv:'중', students:629, staff:49, cal:'muhakM',   src:'확인' },
-  { name:'하양여고', lv:'고', students:497, staff:46, cal:'hayangG',  src:'확인' },
-  { name:'하양여중', lv:'중', students:472, staff:36, cal:'hayangM',  src:'확인' },
-  { name:'금락초',   lv:'초', students:242, staff:27, cal:'geumrakE', src:'확인' },
-  { name:'하양초',   lv:'초', students:518, staff:43, cal:'hayangE',  src:'확인' },
-  { name:'하주초',   lv:'초', students:699, staff:46, cal:'hajuE',    src:'확인' }
+  /* 학생수·교원수: 학교알리미(schoolinfo.go.kr) 공시값
+     lat/lng: 하주초·무학고·하양초는 제공받은 좌표,
+     나머지 4곳은 Google Places 검색 확인값입니다. */
+  { name:'무학고',   lv:'고', students:605, staff:54, cal:'muhakH',   src:'확인',
+    lat:35.9194220, lng:128.8165190 },
+  { name:'무학중',   lv:'중', students:629, staff:49, cal:'muhakM',   src:'확인',
+    lat:35.9196181, lng:128.8173918 },
+  { name:'하양여고', lv:'고', students:497, staff:46, cal:'hayangG',  src:'확인',
+    lat:35.9305441, lng:128.8263107 },
+  { name:'하양여중', lv:'중', students:472, staff:36, cal:'hayangM',  src:'확인',
+    lat:35.9305719, lng:128.8268384 },
+  { name:'금락초',   lv:'초', students:242, staff:27, cal:'geumrakE', src:'확인',
+    lat:35.9108161, lng:128.8241899 },
+  { name:'하양초',   lv:'초', students:518, staff:43, cal:'hayangE',  src:'확인',
+    lat:35.9122045, lng:128.8192442 },
+  { name:'하주초',   lv:'초', students:699, staff:46, cal:'hajuE',    src:'확인',
+    lat:35.9196762, lng:128.8124912 }
 ];
 const K12_TOTAL = K12_SCHOOLS.reduce((a, s) => a + s.students + s.staff, 0);
 
@@ -1153,6 +1214,17 @@ const SCHOOL_CURVES = (() => {
     fest:     [0,0,0,0,0, 0.02,0.10,0.36,0.80, 0.14,0.08,0.10,
                0.16,0.16,0.22,0.40,0.62,0.88,0.70,0.34,0.12,0.04,0,0]
   };
+  /* ── 학교급별 하교 시각 차이 ──
+     초등학교는 1~2학년이 점심 무렵, 5~6학년이 오후에 끝나 하교가 길게 퍼집니다.
+     고등학교는 방과후·야자로 저녁까지 이어집니다.
+     ⚠️ 각 학교의 실제 시정표를 확인하기 전까지는 일반적인 학교급 기준의 추정입니다. */
+  raw.classElem = [0,0,0,0,0, 0.02,0.16,0.50,0.95, 0.08,0.04,0.06,
+                   0.34,0.62,0.78,0.55,0.26,0.12,0.05,0.02,0.01,0,0,0];
+  raw.classMid  = [0,0,0,0,0, 0.02,0.14,0.44,0.95, 0.09,0.05,0.05,
+                   0.08,0.16,0.40,0.88,0.82,0.46,0.20,0.08,0.03,0.01,0,0];
+  raw.classHigh = [0,0,0,0,0, 0.02,0.12,0.38,0.95, 0.10,0.05,0.05,
+                   0.08,0.14,0.26,0.52,0.74,0.80,0.62,0.44,0.30,0.14,0.04,0];
+
   const out = {};
   Object.keys(raw).forEach(k => {
     const sum = raw[k].reduce((a, b) => a + b, 0);
@@ -1160,6 +1232,14 @@ const SCHOOL_CURVES = (() => {
   });
   return out;
 })();
+
+/* 학교급에 맞는 수업일 곡선 */
+function classCurveFor(lv){
+  return lv === '초' ? SCHOOL_CURVES.classElem
+       : lv === '중' ? SCHOOL_CURVES.classMid
+       : lv === '고' ? SCHOOL_CURVES.classHigh
+       :               SCHOOL_CURVES.class;
+}
 
 /* 학교 한 곳의 그날 상태 */
 function calState(cal, date){
@@ -1220,6 +1300,25 @@ function k12State(date){
 }
 function k12Active(){ return k12State(refDate()).scale; }
 
+/* ── 좌표가 있는 학교의 '지금 이 시각' 등하교 인원 ──
+   학사일정(그날 등교 여부·시험·축제)과 학생수를 곱하고,
+   그 학교에 맞는 등하교 곡선의 해당 시각 값을 씁니다.
+   ⚠️ 교문 앞 실측이 아니라 재학생 수 기반 추정입니다. */
+function schoolNodes(date, hour){
+  const d = date || refDate();
+  const h = (hour == null) ? selectedHour : hour;
+  return K12_SCHOOLS.filter(sc => sc.lat && sc.lng).map(sc => {
+    const st = calState(SCHOOL_CALS[sc.cal], d);
+    /* 그 학교가 시험이면 시험 곡선, 축제면 축제 곡선 */
+    const curve = st.mode === 'fest' ? SCHOOL_CURVES.fest
+                : st.exam >= 0.5     ? SCHOOL_CURVES.exam
+                :                      classCurveFor(sc.lv);
+    const people = Math.round((sc.students + sc.staff) * st.scale * curve[h]);
+    return { name:sc.name, lv:sc.lv, lat:sc.lat, lng:sc.lng,
+             students:sc.students, label:st.label, scale:st.scale, people };
+  });
+}
+
 /* 그날의 등하교 곡선 — 시험·축제 학교 비중만큼 섞습니다 */
 function schoolCurve(date){
   const st = k12State(date || refDate());
@@ -1262,8 +1361,8 @@ const SENS = {
   },
   bus:  {station:1.12, market:1.02, university:1.08},
   /* 하양장(끝자리 4·9일) — 대구 신매시장 사례: 장날 방문객이 평일의 3~5배.
-     '시장 일대 통행 1,400'에는 시장 손님(약 900)과 주민 통행(약 500)이 섞여 있어
-     손님 몫만 4배 적용 → (3,600 + 550 + 250) / 1,650 ≈ 2.6배 */
+     '시장 일대 통행 1,020'에 시장 손님(약 650)과 주민 통행(약 370)이 섞여 있어
+     손님 몫만 4배 적용 → (2,600 + 407 + 250) / 1,270 ≈ 2.6배 */
   event:{station:1.08, market:2.60, university:1.00}
 };
 const FACTOR_LABEL = {
@@ -1898,6 +1997,8 @@ function scrollWxToHour(){
 /* ─── OpenStreetMap 지도 ─── */
 let leafMap = null;
 const poiMarkers = {};
+const schoolMarkers = {};
+const nodeMarkers = {};
 
 /* 세 지점이 화면에 꽉 차게 — 지도를 열면 이 범위로 맞춥니다 */
 const POI_BOUNDS = (() => {
@@ -1927,8 +2028,9 @@ function initSvgMap(){
   const boxW = el.clientWidth || 400, boxH = el.clientHeight || 300;
   const VW = 700, VH = Math.round(VW * boxH / boxW);
 
-  const lats = [...POIS, ...EXTRA_NODES].map(p => p.lat);
-  const lngs = [...POIS, ...EXTRA_NODES].map(p => p.lng);
+  const schools = K12_SCHOOLS.filter(x => x.lat && x.lng);
+  const lats = [...POIS, ...EXTRA_NODES, ...schools].map(p => p.lat);
+  const lngs = [...POIS, ...EXTRA_NODES, ...schools].map(p => p.lng);
   let S = Math.min(...lats), N = Math.max(...lats);
   let W = Math.min(...lngs), E = Math.max(...lngs);
   /* 지점들 주변으로 여유를 준 뒤, 화면 비율에 맞게 넓은 쪽을 늘립니다 */
@@ -1975,11 +2077,44 @@ function initSvgMap(){
         <line x1="${barW}" y1="-5" x2="${barW}" y2="5" stroke="#8B96A6" stroke-width="2.5"/>
         <text x="${barW/2}" y="-9" text-anchor="middle" style="font-size:13px;fill:#8B96A6">1km</text>
       </g>
-      ${EXTRA_NODES.map(n => `
-        <g opacity="0.85">
-          <circle cx="${px(n.lng)}" cy="${py(n.lat)}" r="5" fill="${NODE_COLOR[n.type]}"
-                  stroke="#fff" stroke-width="1.4"/>
-        </g>`).join('')}
+      ${(() => {
+        /* 주거·공공 노드도 이름을 답니다. 서로 가까우면 위·아래로 갈라 놓습니다 */
+        const placed = [];
+        return EXTRA_NODES.map(n => {
+          const x = px(n.lng), y = py(n.lat);
+          const near = placed.some(q => Math.abs(q.x - x) < 78 && Math.abs(q.y - y) < 26);
+          placed.push({x, y});
+          const ly = near ? y + 20 : y - 11;
+          return `
+        <g>
+          <circle id="svgnode-${n.name}" cx="${x}" cy="${y}" r="5"
+                  fill="${NODE_COLOR[n.type]}" stroke="#fff" stroke-width="1.4" opacity="0.85"/>
+          <text x="${x}" y="${ly}" text-anchor="middle"
+                style="font-size:11px;font-weight:600;fill:${NODE_COLOR[n.type]}"
+                stroke="#E6EBF3" stroke-width="3" paint-order="stroke"
+                >${n.name} <tspan id="svgnodenum-${n.name}" style="font-weight:800"></tspan></text>
+        </g>`;
+        }).join('');
+      })()}
+      ${(() => {
+        /* 이름과 숫자를 한 줄로 묶고, 가까운 학교끼리는 위·아래로 갈라 놓습니다 */
+        const placed = [];
+        return schools.map(sc => {
+          const x = px(sc.lng), y = py(sc.lat);
+          const near = placed.some(q => Math.abs(q.x - x) < 70 && Math.abs(q.y - y) < 30);
+          placed.push({x, y});
+          const ly = near ? y + 24 : y - 12;   /* 겹치면 아래로 */
+          return `
+        <g>
+          <circle id="svgsch-${sc.name}" cx="${x}" cy="${y}" r="6"
+                  fill="#4A6FE3" stroke="#fff" stroke-width="1.6"/>
+          <text x="${x}" y="${ly}" text-anchor="middle"
+                style="font-size:12.5px;font-weight:700;fill:#4A6FE3"
+                stroke="#E6EBF3" stroke-width="3.2" paint-order="stroke"
+                >${sc.name} <tspan id="svgschnum-${sc.name}" style="font-weight:800"></tspan></text>
+        </g>`;
+        }).join('');
+      })()}
       <text x="${VW - 14}" y="${VH - 12}" text-anchor="end" style="font-size:12px;fill:#95A0B1">오프라인 약식 지도 · 실제 좌표 기준</text>
     </svg>`;
 
@@ -2030,12 +2165,25 @@ function initMap(){
     poiMarkers[poi.id] = m;
   });
 
-  /* 참고 노드 8곳 — 작은 점만, 혼잡도 클릭 동작 없음 */
+  /* 학교 3곳 — 학사일정·학생수 기반, 시간에 따라 크기·색이 바뀝니다 */
+  schoolNodes().forEach(sc => {
+    const m = L.circleMarker([sc.lat, sc.lng], {
+      radius: 7, color:'#fff', weight: 1.8,
+      fillColor: '#4A6FE3', fillOpacity: 0.9
+    }).addTo(leafMap);
+    m.bindTooltip('', { permanent:true, direction:'top', offset:[0,-8], className:'poi-tip sch-tip' });
+    schoolMarkers[sc.name] = m;
+  });
+
+  /* 참고 노드 5곳 — 주거는 세대수에 비례한 크기. 혼잡도 클릭 동작은 없습니다 */
   EXTRA_NODES.forEach(n => {
-    L.circleMarker([n.lat, n.lng], {
+    const m = L.circleMarker([n.lat, n.lng], {
       radius: 5, color:'#fff', weight: 1.4,
-      fillColor: NODE_COLOR[n.type], fillOpacity: 0.9
-    }).addTo(leafMap).bindTooltip(`${n.name} · ${n.type}`, { direction:'top', offset:[0,-6] });
+      fillColor: NODE_COLOR[n.type], fillOpacity: 0.75
+    }).addTo(leafMap);
+    m.bindTooltip(n.name,
+      { permanent:true, direction:'top', offset:[0,-6], className:'poi-tip node-tip' });
+    nodeMarkers[n.name] = m;
   });
 
   refreshMap(60); refreshMap(400);
@@ -2080,6 +2228,27 @@ function updateMap(){
       if(ring) ring.setAttribute('stroke-width', poi.id === selectedPoiId ? 2.5 : 0);
       if(num){ num.textContent = fmt(peopleFor(poi, selectedHour)) + '명'; num.style.fill = lv.color; }
     });
+    /* 학교 — 등교 인원에 따라 점 크기가 바뀝니다 */
+    schoolNodes().forEach(sc => {
+      const dot = document.getElementById('svgsch-' + sc.name);
+      const num = document.getElementById('svgschnum-' + sc.name);
+      if(dot){
+        dot.setAttribute('r', 4 + Math.min(sc.people, 700) / 90);
+        dot.setAttribute('opacity', sc.people < 8 ? 0.3 : 0.95);
+      }
+      if(num) num.textContent = sc.people >= 8 ? fmt(sc.people) : '';   /* tspan */
+    });
+    /* 주거 노드 — 실측이 있는 곳만 숫자를 답니다 */
+    EXTRA_NODES.forEach(n => {
+      const dot = document.getElementById('svgnode-' + n.name);
+      const num = document.getElementById('svgnodenum-' + n.name);
+      const v = nodeFlow(n), open = nodeOpen(n);
+      if(dot){
+        dot.setAttribute('r', v == null ? 5 : (4 + Math.min(v, 260) / 34).toFixed(1));
+        dot.setAttribute('opacity', open === false ? 0.3 : 0.85);
+      }
+      if(num) num.textContent = v != null ? fmt(v) : (open === false ? '종료' : '');
+    });
     return;
   }
   if(!leafMap) return;
@@ -2093,6 +2262,35 @@ function updateMap(){
     m.setTooltipContent(
       `<span class="tip-nm">${poi.short}</span>` +
       `<span class="tip-num" style="color:${lv.color}">${fmt(peopleFor(poi, selectedHour))}명</span>`
+    );
+  });
+
+  /* 학교 — 그 시각 등하교 인원만큼 커집니다 */
+  schoolNodes().forEach(sc => {
+    const m = schoolMarkers[sc.name]; if(!m) return;
+    const on = sc.people >= 8;
+    m.setRadius(4 + Math.min(sc.people, 700) / 90);
+    m.setStyle({ fillOpacity: on ? 0.9 : 0.3, fillColor:'#4A6FE3' });
+    /* 등하교 인원이 적을 때는 이름만 두고 숫자는 비웁니다 */
+    m.setTooltipContent(
+      `<span class="tip-nm">${sc.name}</span>` +
+      (on ? `<span class="tip-num" style="color:#4A6FE3">${fmt(sc.people)}명</span>` : '')
+    );
+  });
+
+  /* 주거·공공 노드 — 실측이 있는 곳은 그 시각 유동인구를 보여줍니다 */
+  EXTRA_NODES.forEach(n => {
+    const m = nodeMarkers[n.name]; if(!m) return;
+    const v = nodeFlow(n);
+    const open = nodeOpen(n);
+    m.setRadius(v == null ? 5 : 4 + Math.min(v, 260) / 34);
+    /* 운영시간이 있는 곳은 닫혀 있으면 흐리게 */
+    m.setStyle({ fillOpacity: open === false ? 0.28 : 0.75 });
+    m.setTooltipContent(
+      `<span class="tip-nm">${n.name}</span>` +
+      (v != null   ? `<span class="tip-num" style="color:${NODE_COLOR[n.type]}">${fmt(v)}명</span>`
+     : open != null ? `<span class="tip-num" style="color:${open ? NODE_COLOR[n.type] : '#9AA6AE'}">${open ? '운영 중' : '운영 종료'}</span>`
+     : '')
     );
   });
 }
@@ -2153,7 +2351,8 @@ function render(){
   const isNow = liveMode && selectedDow === todayDow;
 
   const realHour = now.getHours();
-  const selPoi = POIS.find(p => p.id === selectedPoiId);
+  /* 학교·주거를 고른 상태에서도 신호판·지도는 핵심 지점을 계속 보여줍니다 */
+  const selPoi = POIS.find(p => p.id === selectedPoiId) || POIS[0];
   const pct = congestionFor(selPoi, selectedHour);
   const lv = levelFor(pct);
 
@@ -2177,13 +2376,25 @@ function render(){
   /* 날씨 — 선택한 날짜·시각 기준으로 갱신 */
   if(WX){ buildWxNow(); buildWxHourStrip(); }
 
-  /* 장소 선택기 */
-  $('poiText').textContent = selPoi.short;
-  $('poiMenu').innerHTML = POIS.map(poi => {
-    const c = levelFor(congestionFor(poi, selectedHour));
-    return `<button data-poi="${poi.id}" class="${poi.id === selectedPoiId ? 'on' : ''}" role="menuitem">
-      <i class="lvdot" style="background:${c.color}"></i>${poi.short}
-      <span class="mnum">${fmt(peopleFor(poi, selectedHour))}명</span></button>`;
+  /* 장소 선택기 — 핵심 3곳 + 학교 7곳 + 주거 4곳을 종류별로 묶습니다 */
+  const targets = hourTargets();
+  const cur = targets.find(t => t.key === selectedPoiId) || targets[0];
+  $('poiText').textContent = cur.short;
+  const GROUPS = [
+    { kind:'poi',    title:'주요 지점' },
+    { kind:'school', title:'학교' },
+    { kind:'apt',    title:'아파트' }
+  ];
+  $('poiMenu').innerHTML = GROUPS.map(g => {
+    const items = targets.filter(t => t.kind === g.kind);
+    if(!items.length) return '';
+    return `<div class="mgrp">${g.title}</div>` + items.map(t => {
+      const col = g.kind === 'poi'    ? levelFor(t.pct(selectedHour)).color
+                : g.kind === 'school' ? '#4A6FE3' : '#7C8CA3';
+      return `<button data-poi="${t.key}" class="${t.key === selectedPoiId ? 'on' : ''}" role="menuitem">
+        <i class="lvdot" style="background:${col}"></i>${t.short}
+        <span class="mnum">${fmt(t.people(selectedHour))}명</span></button>`;
+    }).join('');
   }).join('');
   $('heroSub').textContent = `${DOW_KR[selectedDow]}요일 · ${dayType === 'weekday' ? '평일' : '주말·휴일'} 통행 패턴`;
   const causes = activeCauses();
@@ -2231,16 +2442,6 @@ function render(){
     }).join('');
   }
 
-  /* 지점 칩 */
-  const pills = $('poiPills'); pills.innerHTML = '';
-  POIS.forEach(poi => {
-    const b = document.createElement('button');
-    b.className = 'pill' + (poi.id === selectedPoiId ? ' on' : '');
-    b.textContent = poi.short;
-    b.addEventListener('click', () => { selectedPoiId = poi.id; render(); });
-    pills.appendChild(b);
-  });
-
   /* 시간대 표 */
   const list = $('hoursList'); list.innerHTML = '';
   /* 지금보다 뒤인 시간은 '예측'으로 구분합니다 */
@@ -2248,8 +2449,14 @@ function render(){
     (new Date(refDate().getFullYear(), refDate().getMonth(), refDate().getDate())
      - new Date(now.getFullYear(), now.getMonth(), now.getDate())) / 86400000);
   let firstFuture = -1;
+  const tgt = hourTargets().find(t => t.key === selectedPoiId) || hourTargets()[0];
+  $('hoursTitle').textContent = tgt.name;
+  $('hoursKind').textContent =
+    tgt.kind === 'school' ? '학사일정 기준 등하교'
+  : tgt.kind === 'apt'    ? '단지 일대 실측'
+  :                         '유동인구 예측';
   for(let h = 0; h < 24; h++){
-    const p = congestionFor(selPoi, h), l = levelFor(p);
+    const p = tgt.pct(h), l = levelFor(p);
     const future = dayGap > 0 || (dayGap === 0 && h > now.getHours());
     const past   = dayGap < 0 || (dayGap === 0 && h < now.getHours());
     if(future && firstFuture < 0) firstFuture = h;
@@ -2272,12 +2479,47 @@ function render(){
       <div class="track"><i style="width:${Math.min(p,150)/1.5}%;background:${l.color}"></i></div>
       <div class="tg">${future ? '예측' : (past ? '지남' : '지금')}</div>
       <div class="val">${p}%</div>
-      <div class="ppl">${fmt(peopleFor(selPoi, h))}명</div>`;
+      <div class="ppl">${fmt(tgt.people(h))}명</div>`;
     list.appendChild(row);
   }
 
   buildMessage();
   writeHash();
+}
+
+/* ── 요일 예상 탭에서 볼 수 있는 지점 목록 ──
+   핵심 3곳은 기존 혼잡도 기준을 그대로 쓰고,
+   학교·주거는 그 지점의 '평상시 하루 최대'를 100%로 삼아 상대 혼잡도를 냅니다.
+   ⚠️ 세 종류는 기준이 서로 달라 등급을 지점끼리 직접 비교할 수는 없습니다. */
+function hourTargets(){
+  const list = POIS.map(poi => ({
+    key: poi.id, short: poi.short, name: poi.name, kind: 'poi',
+    people: h => peopleFor(poi, h),
+    pct:    h => congestionFor(poi, h)
+  }));
+
+  /* 학교 — 수업일 등하교 곡선의 최대값을 100%로 */
+  K12_SCHOOLS.filter(sc => sc.lat && sc.lng).forEach(sc => {
+    const cap = (sc.students + sc.staff) * Math.max(...classCurveFor(sc.lv));
+    list.push({
+      key: 'sch:' + sc.name, short: sc.name, name: sc.name, kind: 'school',
+      people: h => (schoolNodes(null, h).find(x => x.name === sc.name) || {people:0}).people,
+      pct:    h => Math.round(((schoolNodes(null, h).find(x => x.name === sc.name) || {people:0}).people) / cap * 100)
+    });
+  });
+
+  /* 주거 — 그 단지 실측의 하루 중 최대 시간당 인원을 100%로 */
+  EXTRA_NODES.filter(n => n.daily).forEach(n => {
+    let cap = 1;
+    for(let d = 0; d < 7; d++) for(let h = 0; h < 24; h++)
+      cap = Math.max(cap, nodeFlow(n, h, d));
+    list.push({
+      key: 'apt:' + n.name, short: n.name, name: n.name, kind: 'apt',
+      people: h => nodeFlow(n, h),
+      pct:    h => Math.round(nodeFlow(n, h) / cap * 100)
+    });
+  });
+  return list;
 }
 
 /* 오늘 하루 중 가장 붐비는 시간 */
@@ -2509,38 +2751,65 @@ function drawSpark(poi){
   ptr.className = 'ptr'; ptr.innerHTML = '<i>↻</i>';
   document.querySelector('.app').appendChild(ptr);
   const mark = ptr.querySelector('i');
-  let y0 = null, pull = 0;
+  /* 실수로 새로고침되지 않도록 조건을 엄격하게 둡니다.
+     - 화면 맨 위에서 시작해야 하고
+     - 세로로 크게(180px) 당겨야 하며
+     - 가로로 많이 흔들리면(스크롤·스와이프로 보고) 취소합니다 */
+  const TRIGGER = 180;        /* 발동 거리 */
+  const SHOW_AT = 30;         /* 이만큼 당겨야 표시가 보이기 시작 */
+  let y0 = null, x0 = 0, pull = 0, canceled = false;
+
   window.addEventListener('touchstart', e => {
-    if(window.scrollY <= 0 && !$('howtoSheet').classList.contains('on')) y0 = e.touches[0].clientY;
-  }, {passive:true});
-  window.addEventListener('touchmove', e => {
-    if(y0 === null) return;
-    pull = Math.max(0, e.touches[0].clientY - y0);
-    if(pull > 4){
-      const k = Math.min(1, pull / 90);
-      mark.style.opacity = k;
-      mark.style.transform = `translateY(${(pull * .35).toFixed(0)}px) scale(${(.7 + k * .3).toFixed(2)}) rotate(${(pull * 2).toFixed(0)}deg)`;
+    if(window.scrollY <= 2 && !$('howtoSheet').classList.contains('on')){
+      y0 = e.touches[0].clientY;
+      x0 = e.touches[0].clientX;
+      canceled = false;
     }
   }, {passive:true});
+
+  window.addEventListener('touchmove', e => {
+    if(y0 === null || canceled) return;
+    const dy = e.touches[0].clientY - y0;
+    const dx = Math.abs(e.touches[0].clientX - x0);
+    /* 위로 올리거나, 옆으로 많이 움직이면 새로고침 의도가 아닙니다 */
+    if(dy < -6 || dx > 40 || window.scrollY > 2){
+      canceled = true; pull = 0;
+      mark.style.opacity = 0; mark.style.transform = '';
+      return;
+    }
+    pull = Math.max(0, dy);
+    if(pull > SHOW_AT){
+      const k = Math.min(1, (pull - SHOW_AT) / (TRIGGER - SHOW_AT));
+      mark.style.opacity = k;
+      mark.style.transform = `translateY(${((pull - SHOW_AT) * .3).toFixed(0)}px) scale(${(.7 + k * .3).toFixed(2)}) rotate(${(pull * 1.4).toFixed(0)}deg)`;
+      /* 발동선을 넘으면 색이 진해져서 손을 떼도 되는 걸 알 수 있습니다 */
+      mark.style.color = pull >= TRIGGER ? 'var(--road)' : '';
+    }else{
+      mark.style.opacity = 0;
+    }
+  }, {passive:true});
+
   window.addEventListener('touchend', () => {
-    if(y0 !== null && pull > 80){
+    if(y0 !== null && !canceled && pull >= TRIGGER){
       loadWeather(true);
       toast('새로고침하는 중');
     }
-    mark.style.opacity = 0; mark.style.transform = '';
-    y0 = null; pull = 0;
+    mark.style.opacity = 0; mark.style.transform = ''; mark.style.color = '';
+    y0 = null; pull = 0; canceled = false;
   });
 })();
 
 /* ══════ 주소로 상태 주고받기 ══════
    #station-3-14 처럼 지점·요일·시각을 주소에 담아, 링크만으로 같은 화면을 열 수 있습니다. */
 function readHash(){
-  const m = (location.hash || '').replace('#', '').split('-');
+  const raw = decodeURIComponent((location.hash || '').replace('#', ''));
+  const m = raw.split('-');
   if(m.length < 3) return false;
-  const poi = POIS.find(p => p.id === m[0]);
-  const d = Number(m[1]), h = Number(m[2]);
-  if(!poi || !(d >= 0 && d <= 6) || !(h >= 0 && h <= 23)) return false;
-  selectedPoiId = poi.id;
+  const h = Number(m.pop()), d = Number(m.pop());
+  const key = m.join('-');
+  const ok = POIS.some(p => p.id === key) || /^(sch|apt):/.test(key);
+  if(!ok || !(d >= 0 && d <= 6) || !(h >= 0 && h <= 23)) return false;
+  selectedPoiId = key;
   setDow(d);
   selectedHour = h;
   const isNow = d === new Date().getDay() && h === new Date().getHours();
@@ -2548,7 +2817,7 @@ function readHash(){
   return true;
 }
 function writeHash(){
-  const want = `#${selectedPoiId}-${selectedDow}-${selectedHour}`;
+  const want = `#${encodeURIComponent(selectedPoiId)}-${selectedDow}-${selectedHour}`;
   if(location.hash !== want) history.replaceState(null, '', want);
 }
 window.addEventListener('hashchange', () => { if(readHash()) render(); });
