@@ -415,6 +415,27 @@ if(typeof L === 'undefined'){
   .switch.on{background:var(--safe);}
   .switch.on i{transform:translateX(18px);}
 
+  /* ── 도미노 시뮬레이션 ── */
+  .sim{padding:4px 0 6px;}
+  .sim-ctl{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line-2);}
+  .sim-ctl label{font-size:12.5px;font-weight:700;color:var(--ink-3);white-space:nowrap;min-width:62px;}
+  .sim-ctl select{flex:1;border:1px solid var(--line);background:var(--card);color:var(--ink);
+    border-radius:11px;padding:9px 11px;font-size:13.5px;font-weight:600;font-family:inherit;
+    letter-spacing:-.02em;}
+  .sim-amt{flex:1;display:flex;align-items:center;gap:11px;}
+  .sim-amt input{flex:1;}
+  .sim-amt b{font-family:var(--mono);font-size:13px;min-width:52px;text-align:right;letter-spacing:-.03em;}
+  .sim-out{padding:4px 0 0;}
+  .srow{display:grid;grid-template-columns:44px 1fr auto;gap:11px;align-items:center;
+    padding:11px 16px;border-bottom:1px solid var(--line-2);}
+  .srow:last-child{border-bottom:none;}
+  .stime{font-family:var(--mono);font-size:11.5px;font-weight:700;color:var(--road);
+    background:var(--road-soft);border-radius:7px;padding:5px 0;text-align:center;letter-spacing:-.04em;}
+  .snm{font-size:14px;font-weight:600;letter-spacing:-.03em;}
+  .ssub{display:block;font-size:10.5px;color:var(--ink-3);margin-top:3px;font-family:var(--mono);letter-spacing:-.02em;}
+  .sadd{font-family:var(--mono);font-size:13px;font-weight:800;letter-spacing:-.03em;}
+  .snone{padding:16px;text-align:center;font-size:12.5px;color:var(--ink-3);}
+
   /* ── 오늘 흐름 ── */
   .flow{display:grid;grid-template-columns:1fr;overflow:hidden;position:relative;}
   .flow > div{padding:16px 17px;position:relative;}
@@ -692,6 +713,22 @@ if(typeof L === 'undefined'){
 
       <div class="sec-title"><span>오늘 자동 분석</span><small id="autoStamp">—</small></div>
       <div class="card" id="autoCard"></div>
+
+      <div class="sec-title"><span>도미노 시뮬레이션</span><small>ST-GNN 구조</small></div>
+      <div class="card sim">
+        <div class="sim-ctl">
+          <label>어디에</label>
+          <select id="simFrom"></select>
+        </div>
+        <div class="sim-ctl">
+          <label>몇 명 늘면</label>
+          <div class="sim-amt">
+            <input type="range" id="simAmt" min="50" max="1500" step="50" value="500">
+            <b id="simAmtLabel">500명</b>
+          </div>
+        </div>
+        <div class="sim-out" id="simOut"></div>
+      </div>
 
     </section>
 
@@ -1372,11 +1409,14 @@ const FACTOR_LABEL = {
 };
 
 /* 혼잡도 등급 — 평소 최대 혼잡을 100으로 봤을 때 */
+/* ── 위험도 기준 (2026.08.26 컨설팅 반영) ──
+   '평상시 같은 시간대 대비 몇 % 증가했는가'로 판정합니다.
+   평상시 = 날씨·장날·학사일정 등 조건을 모두 뺀 기본 통행량. */
 const LEVELS = [
-  {key:'safe',  label:'안전', color:'#00A05A', max:70},
-  {key:'watch', label:'관심', color:'#E8AE00', max:95},
-  {key:'care',  label:'주의', color:'#F07A13', max:125},
-  {key:'risk',  label:'위험', color:'#E03427', max:Infinity}
+  {key:'safe',  label:'안전', color:'#00A05A', max:20},    /* 0~20% 증가 */
+  {key:'watch', label:'관심', color:'#E8AE00', max:50},    /* 20~50% */
+  {key:'care',  label:'주의', color:'#F07A13', max:100},   /* 50~100% */
+  {key:'risk',  label:'위험', color:'#E03427', max:Infinity} /* 100% 이상 */
 ];
 
 let POIS = JSON.parse(JSON.stringify(POIS_BASE));
@@ -1497,11 +1537,6 @@ function peakNormal(poi){
   return mx;
 }
 
-/* 혼잡도 = 그 지점이 평소 가장 붐빌 때 대비 몇 % 인가 */
-function congestionFor(poi, hour){
-  return Math.round(peopleFor(poi, hour) / peakNormal(poi) * 100);
-}
-
 /* 오늘 조건 때문에 평상시보다 얼마나 늘었는지 (같은 시간대끼리 비교) */
 function deviationFor(poi, hour){
   const before = peopleFor(poi, hour, false), after = peopleFor(poi, hour, true);
@@ -1509,7 +1544,19 @@ function deviationFor(poi, hour){
   return Math.round((after / before - 1) * 100);
 }
 
-function levelFor(pct){ return LEVELS.find(l => pct <= l.max); }
+/* 위험도 = 평상시 같은 시간대 대비 증가율(%)
+   조건(날씨·장날·학사일정·통근)이 없을 때와 비교하므로,
+   '지금 왜 붐비는가'를 바로 설명할 수 있습니다. */
+function congestionFor(poi, hour){
+  return deviationFor(poi, hour);
+}
+
+/* 참고용 — 그 지점 평소 최대 대비 비율 (막대 길이에 씁니다) */
+function loadFor(poi, hour){
+  return Math.round(peopleFor(poi, hour) / peakNormal(poi) * 100);
+}
+
+function levelFor(pct){ return LEVELS.find(l => pct <= l.max) || LEVELS[LEVELS.length-1]; }
 function hourLabel(h){
   if(h === 0) return '자정';
   if(h === 12) return '낮 12시';
@@ -1994,6 +2041,164 @@ function scrollWxToHour(){
   strip.scrollLeft = Math.max(0, el.offsetLeft - strip.clientWidth / 2 + el.offsetWidth / 2);
 }
 
+/* ═══════════════════════════════════════════════════════════
+   시공간 그래프 전파 (ST-GNN 구조 차용)
+   2026.08.26 컨설팅에서 지정된 '도미노 효과 시뮬레이션'을 구현합니다.
+
+   [1 Baseline] → [2 충격 주입] → [3 전파 추론] → [4 델타 분석]
+
+   · 노드(V) = 14곳 (핵심 3 + 학교 7 + 주거 4)
+   · 간선(E) = 실제 좌표 거리로 자동 생성 (1.3km 이내)
+   · 가중치(W) = 거리 감쇠 × 노드 유형별 통행 성향
+   · 시간 지연 = 도보·버스 이동 시간
+
+   ⚠️ 학습형 GNN이 아니라 메시지 패싱 '구조'를 규칙으로 옮긴 것입니다.
+      노드별 시계열 실측이 쌓이면 STGCN·Graph WaveNet 으로 학습 가능합니다.
+   ═══════════════════════════════════════════════════════════ */
+
+/* 그래프의 모든 노드 */
+function graphNodes(){
+  const out = POIS.map(p => ({ id:p.id, name:p.short, kind:'poi', lat:p.lat, lng:p.lng }));
+  K12_SCHOOLS.filter(s => s.lat).forEach(s =>
+    out.push({ id:'sch:'+s.name, name:s.name, kind:'school', lat:s.lat, lng:s.lng, lv:s.lv }));
+  EXTRA_NODES.filter(n => n.daily).forEach(n =>
+    out.push({ id:'apt:'+n.name, name:n.name, kind:'apt', lat:n.lat, lng:n.lng }));
+  return out;
+}
+
+function metersBetween(a, b){
+  const R = 6371000, rad = Math.PI/180;
+  const la = a.lat*rad, lb = b.lat*rad;
+  const dLat = (b.lat-a.lat)*rad, dLng = (b.lng-a.lng)*rad;
+  const x = Math.sin(dLat/2)**2 + Math.cos(la)*Math.cos(lb)*Math.sin(dLng/2)**2;
+  return R * 2 * Math.asin(Math.sqrt(x));
+}
+
+/* 노드 유형 조합별 통행 성향 — 어느 쪽으로 사람이 더 흐르는가 */
+const FLOW_AFFINITY = {
+  'apt→school'   : 1.30,   /* 등교 */
+  'apt→poi'      : 1.15,   /* 장보기·역 이용 */
+  'school→apt'   : 1.25,   /* 하교 후 귀가 */
+  'school→poi'   : 0.80,
+  'poi→poi'      : 1.20,   /* 역↔시장↔대학 — 주된 통행 축 */
+  'poi→apt'      : 0.35,   /* 대학·역에서 아파트로 가는 건 소수 */
+  'poi→school'   : 0.15,   /* 대학생이 초·중·고로 갈 일은 거의 없음 */
+  'school→school': 0.30,
+  'apt→apt'      : 0.45
+};
+
+/* 인접 행렬 — 한 번만 만들어 재사용합니다 */
+const GRAPH = (() => {
+  const V = graphNodes();
+  const E = [];
+  const MAX_M = 1300;              /* 도보 20분 남짓까지만 이웃으로 봅니다 */
+  for(let i = 0; i < V.length; i++){
+    for(let j = 0; j < V.length; j++){
+      if(i === j) continue;
+      const m = metersBetween(V[i], V[j]);
+      if(m > MAX_M) continue;
+      /* 거리 감쇠: 가까울수록 강하게 (500m에서 절반) */
+      const decay = Math.exp(-m / 500);
+      const aff = FLOW_AFFINITY[V[i].kind + '→' + V[j].kind] || 1;
+      /* 이동 시간: 600m 넘으면 버스도 섞인다고 보고 조금 빠르게 */
+      const lag = m > 600 ? Math.round(m/95 + 4) : Math.round(m/67);
+      E.push({ from:V[i].id, to:V[j].id, m:Math.round(m),
+               w:+(decay * aff * 0.42).toFixed(4), lag:Math.max(1, lag) });
+    }
+  }
+  return { V, E };
+})();
+
+/* 그 노드의 '지금 이 시각' 인원 — 유형마다 계산법이 다릅니다 */
+function nodePeople(id, hour){
+  const h = (hour == null) ? selectedHour : hour;
+  if(id.startsWith('sch:')){
+    const nm = id.slice(4);
+    return (schoolNodes(null, h).find(x => x.name === nm) || {people:0}).people;
+  }
+  if(id.startsWith('apt:')){
+    const n = EXTRA_NODES.find(x => x.name === id.slice(4));
+    return n ? (nodeFlow(n, h) || 0) : 0;
+  }
+  const poi = POIS.find(p => p.id === id);
+  return poi ? Math.round(peopleFor(poi, h)) : 0;
+}
+
+/* 평상시(조건 없음) 인원 — 델타 계산의 기준선 */
+function nodeBase(id, hour){
+  const h = (hour == null) ? selectedHour : hour;
+  const poi = POIS.find(p => p.id === id);
+  if(poi) return Math.round(peopleFor(poi, h, false));
+  return nodePeople(id, h);   /* 학교·주거는 조건 배율을 안 쓰므로 동일 */
+}
+
+/* ── [3] 전파 추론 ──
+   출발 노드에 충격(추가 인원)을 주입하고, 간선을 따라 k단계 퍼뜨립니다.
+   각 단계에서 시간 지연이 누적되므로 '몇 분 뒤 어디에' 가 나옵니다. */
+function propagate(sourceId, shock, hops){
+  const K = hops || 2;
+  const acc = {};                    /* id → {add, at} */
+  let frontier = [{ id:sourceId, amt:shock, t:0 }];
+  const seen = { [sourceId]: true };
+
+  for(let k = 0; k < K; k++){
+    const next = [];
+    frontier.forEach(cur => {
+      GRAPH.E.filter(e => e.from === cur.id).forEach(e => {
+        if(e.to === sourceId) return;      /* 출발지로 되돌아가지 않습니다 */
+        const add = cur.amt * e.w;
+        if(add < 2) return;                /* 2명 미만은 무시 */
+        const at = cur.t + e.lag;
+        if(!acc[e.to]) acc[e.to] = { add:0, at, hop:k+1 };
+        acc[e.to].add += add;
+        acc[e.to].at = Math.min(acc[e.to].at, at);
+        if(!seen[e.to]){ seen[e.to] = true; next.push({ id:e.to, amt:add, t:at }); }
+      });
+    });
+    frontier = next;
+    if(!frontier.length) break;
+  }
+  return Object.entries(acc).map(([id, v]) => {
+    const node = GRAPH.V.find(n => n.id === id);
+    const base = nodePeople(id);
+    return { id, name:node ? node.name : id, kind:node ? node.kind : '',
+             add:Math.round(v.add), at:v.at, hop:v.hop,
+             base, after:base + Math.round(v.add),
+             pct: base ? Math.round(v.add / base * 100) : 0 };
+  }).sort((a, b) => b.add - a.add);
+}
+
+/* ── [4] 델타 분석 화면 ── */
+let simFrom = 'university', simAmt = 500, simReady = false;
+
+function buildSim(){
+  const sel = $('simFrom'); if(!sel) return;
+  if(!simReady){
+    sel.innerHTML = GRAPH.V.map(n =>
+      `<option value="${n.id}"${n.id === simFrom ? ' selected' : ''}>${n.name}</option>`).join('');
+    simReady = true;
+  }
+  $('simAmtLabel').textContent = fmt(simAmt) + '명';
+
+  const res = propagate(simFrom, simAmt, 2).filter(x => x.add >= 5).slice(0, 7);
+  const box = $('simOut');
+  if(!res.length){
+    box.innerHTML = '<div class="snone">이 인원으로는 이웃까지 뚜렷하게 번지지 않아요</div>';
+    return;
+  }
+  box.innerHTML = res.map(x => {
+    const lv = levelFor(x.pct);
+    return `<div class="srow">
+      <span class="stime">+${x.at}분</span>
+      <span><span class="snm">${x.name}</span>
+        <span class="ssub">${fmt(x.base)} → ${fmt(x.after)}명 · ${x.hop}단계</span></span>
+      <span class="sadd" style="color:${lv.color}">+${fmt(x.add)}</span></div>`;
+  }).join('');
+}
+
+$('simFrom').addEventListener('change', e => { simFrom = e.target.value; buildSim(); });
+$('simAmt').addEventListener('input', e => { simAmt = Number(e.target.value); buildSim(); });
+
 /* ─── OpenStreetMap 지도 ─── */
 let leafMap = null;
 const poiMarkers = {};
@@ -2404,13 +2609,14 @@ function render(){
 
   drawSpark(selPoi);
   buildFlow(selPoi);
+  buildSim();
   buildWxNow();
 
   /* 지도 */
   updateMap();
 
   /* 경보(항상 실제 현재 시각 기준) */
-  const hot = POIS.map(poi => ({poi, pct:congestionFor(poi, realHour)}))
+  const hot = POIS.map(poi => ({poi, pct:congestionFor(poi, realHour)}))   /* 위험도 순 */
                   .filter(x => x.pct > 95).sort((a,b) => b.pct - a.pct);
   const warn = $('warnBox');
   if(hot.length){
@@ -2457,6 +2663,7 @@ function render(){
   :                         '유동인구 예측';
   for(let h = 0; h < 24; h++){
     const p = tgt.pct(h), l = levelFor(p);
+    const bar = tgt.load ? tgt.load(h) : p;   /* 막대 길이는 규모, 색은 위험도 */
     const future = dayGap > 0 || (dayGap === 0 && h > now.getHours());
     const past   = dayGap < 0 || (dayGap === 0 && h < now.getHours());
     if(future && firstFuture < 0) firstFuture = h;
@@ -2476,7 +2683,7 @@ function render(){
       + (future ? ' future' : '') + (past ? ' past' : '');
     row.innerHTML = `
       <div class="hh">${String(h).padStart(2,'0')}시</div>
-      <div class="track"><i style="width:${Math.min(p,150)/1.5}%;background:${l.color}"></i></div>
+      <div class="track"><i style="width:${Math.min(bar,150)/1.5}%;background:${l.color}"></i></div>
       <div class="tg">${future ? '예측' : (past ? '지남' : '지금')}</div>
       <div class="val">${p}%</div>
       <div class="ppl">${fmt(tgt.people(h))}명</div>`;
@@ -2495,7 +2702,8 @@ function hourTargets(){
   const list = POIS.map(poi => ({
     key: poi.id, short: poi.short, name: poi.name, kind: 'poi',
     people: h => peopleFor(poi, h),
-    pct:    h => congestionFor(poi, h)
+    pct:    h => congestionFor(poi, h),
+    load:   h => loadFor(poi, h)
   }));
 
   /* 학교 — 수업일 등하교 곡선의 최대값을 100%로 */
@@ -2528,7 +2736,7 @@ function buildFlow(poi){
   $('flowPoi').textContent = poi.short;
   let hi = 0;
   for(let h = 1; h < 24; h++){
-    if(congestionFor(poi, h) > congestionFor(poi, hi)) hi = h;
+    if(peopleFor(poi, h) > peopleFor(poi, hi)) hi = h;   /* 인원이 가장 많은 시각 */
   }
   const lv = levelFor(congestionFor(poi, hi));
   box.className = 'card flow one';
@@ -2695,7 +2903,7 @@ function drawSpark(poi){
   const svg = $('heroSpark'); if(!svg) return;
   const W = 240, H = 52, n = 24, PT = 6, PB = 5;
   const vals = [];
-  for(let h = 0; h < n; h++) vals.push(congestionFor(poi, h));
+  for(let h = 0; h < n; h++) vals.push(loadFor(poi, h));   /* 곡선 높이는 절대 규모 */
   const mx = Math.max(...vals, 100);
   const x = i => i / (n - 1) * W;
   const y = v => H - PB - (v / mx) * (H - PT - PB);
