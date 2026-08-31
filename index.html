@@ -415,6 +415,36 @@ if(typeof L === 'undefined'){
   .switch.on{background:var(--safe);}
   .switch.on i{transform:translateX(18px);}
 
+  /* ── 지도 위 도미노 오버레이 ── */
+  .simtog{width:100%;margin:11px 0 2px;border:1px dashed var(--line);background:none;
+    color:var(--ink-3);border-radius:12px;padding:11px;font-size:12.5px;font-weight:700;
+    letter-spacing:-.02em;transition:background .16s, color .16s, border-color .16s;}
+  .simtog.on{background:var(--road-soft);color:var(--road);border-style:solid;border-color:var(--road);}
+  #simOverlay{position:absolute;inset:0;pointer-events:none;z-index:5;}
+  .map-frame{position:relative;}
+
+  /* ── 이상 징후 ── */
+  .anom{overflow:hidden;}
+  .arow{display:grid;grid-template-columns:26px 1fr auto;gap:11px;align-items:center;
+    padding:12px 16px;border-bottom:1px solid var(--line-2);}
+  .arow:last-child{border-bottom:none;}
+  .abadge{width:24px;height:24px;border-radius:8px;color:#fff;font-size:10px;
+    display:grid;place-items:center;font-weight:800;}
+  .anm{font-size:14.5px;font-weight:600;letter-spacing:-.03em;}
+  .asub{display:block;font-size:10.5px;color:var(--ink-3);margin-top:3px;letter-spacing:-.01em;line-height:1.5;}
+  .adev{font-family:var(--mono);font-size:14px;font-weight:800;letter-spacing:-.03em;}
+
+  /* ── 시나리오 프리셋 ── */
+  .scn{display:flex;gap:7px;overflow-x:auto;padding-bottom:4px;margin-bottom:11px;
+    scrollbar-width:none;}
+  .scn::-webkit-scrollbar{display:none;}
+  .scn button{border:1px solid var(--line);background:var(--card);color:var(--ink-2);
+    border-radius:999px;padding:8px 14px;font-size:12.5px;font-weight:700;white-space:nowrap;
+    letter-spacing:-.02em;transition:transform .12s var(--ease), background .18s, color .18s;}
+  .scn button:active{transform:scale(.95);}
+  .scn button.on{background:var(--road);color:#fff;border-color:var(--road);
+    box-shadow:0 3px 10px rgba(23,87,143,.25);}
+
   /* ── 도미노 시뮬레이션 ── */
   .sim{padding:4px 0 6px;}
   .sim-ctl{display:flex;align-items:center;gap:12px;padding:12px 16px;border-bottom:1px solid var(--line-2);}
@@ -651,6 +681,7 @@ if(typeof L === 'undefined'){
         <div class="map-frame">
           <div id="leafmap" role="application" aria-label="하양읍 세 지점 지도"></div>
           <div id="tileWarn">지도 이미지를 불러오지 못했습니다. 인터넷 연결이나 네트워크 차단 설정을 확인해 주세요.</div>
+          <svg id="simOverlay" aria-hidden="true"></svg>
         </div>
         <div class="legend">
           <span><i class="sw" style="background:#00A05A"></i>안전</span>
@@ -658,6 +689,7 @@ if(typeof L === 'undefined'){
           <span><i class="sw" style="background:#F07A13"></i>주의</span>
           <span><i class="sw" style="background:#E03427"></i>위험</span>
         </div>
+        <button class="simtog" id="simTog">도미노 보기</button>
         <div class="legend node-legend">
           <span><i class="sw" style="background:#4A6FE3"></i>학교 <small>학사일정 반영</small></span>
           <span><i class="sw" style="background:#7C8CA3"></i>주거 <small>실측 반영</small></span>
@@ -714,7 +746,11 @@ if(typeof L === 'undefined'){
       <div class="sec-title"><span>오늘 자동 분석</span><small id="autoStamp">—</small></div>
       <div class="card" id="autoCard"></div>
 
+      <div class="sec-title"><span>이상 징후</span><small>평상시 대비 ±25% 이상</small></div>
+      <div class="card anom" id="anomCard"></div>
+
       <div class="sec-title"><span>도미노 시뮬레이션</span><small>ST-GNN 구조</small></div>
+      <div class="scn" id="scnRow"></div>
       <div class="card sim">
         <div class="sim-ctl">
           <label>어디에</label>
@@ -2168,19 +2204,99 @@ function propagate(sourceId, shock, hops){
   }).sort((a, b) => b.add - a.add);
 }
 
+/* ── 이상 징후 탐지 (Anomaly Detection) ──
+   평상시 같은 시간대와 견줘 크게 벌어진 지점을 찾고, 그 원인을 짚습니다.
+   지금 앱은 원인을 '알고' 계산하므로, 추론이 아니라 역추적입니다. */
+function detectAnomalies(hour){
+  const h = (hour == null) ? selectedHour : hour;
+  const out = [];
+  POIS.forEach(poi => {
+    const base = peopleFor(poi, h, false);
+    const now  = peopleFor(poi, h, true);
+    if(base < 8) return;                     /* 원래 한산한 시간대는 건너뜁니다 */
+    const dev = Math.round((now / base - 1) * 100);
+    if(Math.abs(dev) < 25) return;           /* ±25% 안쪽은 평상 범위 */
+
+    /* 어느 조건이 얼마나 기여했는지 하나씩 빼보며 확인 */
+    const causes = [];
+    const keep = { ...cond };
+    const trial = (label, patch) => {
+      Object.assign(cond, patch);
+      const alt = peopleFor(poi, h, true);
+      Object.assign(cond, keep);
+      const share = Math.round((now - alt) / Math.abs(now - base) * 100);
+      if(Math.abs(share) >= 15) causes.push({ label, share });
+    };
+    if(cond.weather !== 'clear') trial(FACTOR_LABEL[cond.weather], { weather:'clear' });
+    if(cond.event)               trial('하양장',   { event:false });
+    if(cond.bus)                 trial('통근·통학', { bus:false });
+    if(cond.academic !== 'normal') trial('대학 ' + FACTOR_LABEL[cond.academic], { academic:'normal' });
+
+    const k12 = k12State(refDate());
+    if(k12.scale < 0.9) causes.push({ label:'초·중·고 ' + (k12.scale < 0.2 ? '방학' : '일부 방학'), share:null });
+
+    causes.sort((a, b) => Math.abs(b.share || 0) - Math.abs(a.share || 0));
+    out.push({ poi, dev, base:Math.round(base), now:Math.round(now), causes:causes.slice(0, 3) });
+  });
+  return out.sort((a, b) => Math.abs(b.dev) - Math.abs(a.dev));
+}
+
+function buildAnomaly(){
+  const box = $('anomCard'); if(!box) return;
+  const list = detectAnomalies();
+  if(!list.length){
+    box.innerHTML = '<div class="snone">지금은 모든 지점이 평상 범위예요</div>';
+    return;
+  }
+  box.innerHTML = list.map(a => {
+    const up = a.dev > 0;
+    const lv = levelFor(a.dev);
+    return `<div class="arow">
+      <span class="abadge" style="background:${up ? lv.color : '#7C8CA3'}">${up ? '▲' : '▼'}</span>
+      <span><span class="anm">${a.poi.short}</span>
+        <span class="asub">${fmt(a.base)} → ${fmt(a.now)}명 · ${a.causes.map(c =>
+          c.share == null ? c.label : `${c.label} ${c.share > 0 ? '+' : ''}${c.share}%`).join(' · ') || '조건 복합'}</span></span>
+      <span class="adev" style="color:${up ? lv.color : '#7C8CA3'}">${up ? '+' : ''}${a.dev}%</span></div>`;
+  }).join('');
+}
+
+/* ── 시나리오 프리셋 (What-If Simulation) ──
+   실제로 하양읍에서 일어날 만한 상황을 미리 담아 둡니다. */
+const SCENARIOS = [
+  { key:'fest',   label:'대학 축제',   node:'university',        amt:900,
+    desc:'대가대 축제로 외부 방문객이 몰릴 때' },
+  { key:'market', label:'장날 오전',   node:'market',            amt:600,
+    desc:'끝자리 4·9일 오일장이 서는 날' },
+  { key:'train',  label:'열차 도착',   node:'station',           amt:350,
+    desc:'대경선 열차가 한꺼번에 승객을 쏟아낼 때' },
+  { key:'school', label:'학교 조기하교', node:'sch:무학고',        amt:600,
+    desc:'시험 끝나고 여러 학교가 동시에 하교할 때' },
+  { key:'apt',    label:'아파트 퇴근',  node:'apt:LH 천년나무 4단지', amt:400,
+    desc:'대단지 퇴근 시간대 귀가 집중' }
+];
+
 /* ── [4] 델타 분석 화면 ── */
-let simFrom = 'university', simAmt = 500, simReady = false;
+let simFrom = 'university', simAmt = 900, simScn = 'fest', simReady = false;
+let simResult = null, simShow = false;
 
 function buildSim(){
   const sel = $('simFrom'); if(!sel) return;
   if(!simReady){
     sel.innerHTML = GRAPH.V.map(n =>
       `<option value="${n.id}"${n.id === simFrom ? ' selected' : ''}>${n.name}</option>`).join('');
+    $('scnRow').innerHTML = SCENARIOS.map(x =>
+      `<button data-scn="${x.key}" title="${x.desc}">${x.label}</button>`).join('');
     simReady = true;
   }
+  sel.value = simFrom;
+  $('simAmt').value = simAmt;
   $('simAmtLabel').textContent = fmt(simAmt) + '명';
+  document.querySelectorAll('#scnRow button').forEach(b =>
+    b.classList.toggle('on', b.dataset.scn === simScn));
 
   const res = propagate(simFrom, simAmt, 2).filter(x => x.add >= 5).slice(0, 7);
+  simResult = { from:simFrom, list:res };
+  if($('screen-map').classList.contains('on')) drawSimOverlay();
   const box = $('simOut');
   if(!res.length){
     box.innerHTML = '<div class="snone">이 인원으로는 이웃까지 뚜렷하게 번지지 않아요</div>';
@@ -2196,8 +2312,109 @@ function buildSim(){
   }).join('');
 }
 
-$('simFrom').addEventListener('change', e => { simFrom = e.target.value; buildSim(); });
-$('simAmt').addEventListener('input', e => { simAmt = Number(e.target.value); buildSim(); });
+$('scnRow').addEventListener('click', e => {
+  const b = e.target.closest('button'); if(!b) return;
+  const sc = SCENARIOS.find(x => x.key === b.dataset.scn); if(!sc) return;
+  simScn = sc.key; simFrom = sc.node; simAmt = sc.amt;
+  buildAnomaly();
+  buildSim();
+  toast(sc.desc);
+});
+$('simFrom').addEventListener('change', e => {
+  simFrom = e.target.value; simScn = null; buildSim();
+});
+$('simAmt').addEventListener('input', e => {
+  simAmt = Number(e.target.value); simScn = null; buildSim();
+});
+
+/* ── 지도 위에 도미노 전파를 그립니다 ──
+   Leaflet 이면 지도 투영을, 오프라인 SVG 지도면 같은 선형 투영을 씁니다. */
+function projectOnMap(lat, lng){
+  const frame = document.querySelector('.map-frame');
+  if(!frame) return null;
+  if(mapMode === 'leaflet' && leafMap){
+    const pt = leafMap.latLngToContainerPoint([lat, lng]);
+    return { x:pt.x, y:pt.y };
+  }
+  /* 오프라인 SVG: initSvgMap 과 동일한 범위 계산 */
+  const svg = frame.querySelector('svg.svgmap');
+  if(!svg) return null;
+  const vb = svg.viewBox.baseVal, r = svg.getBoundingClientRect();
+  const fr = frame.getBoundingClientRect();
+  const all = [...POIS, ...EXTRA_NODES, ...K12_SCHOOLS.filter(x => x.lat)];
+  const lats = all.map(p => p.lat), lngs = all.map(p => p.lng);
+  const cLat = (Math.max(...lats) + Math.min(...lats)) / 2;
+  const cLng = (Math.max(...lngs) + Math.min(...lngs)) / 2;
+  let hLat = Math.max((Math.max(...lats) - Math.min(...lats)) / 2, 0.003) * 1.18;
+  let hLng = Math.max((Math.max(...lngs) - Math.min(...lngs)) / 2, 0.003) * 1.18;
+  const PAD = 40;
+  const vx = PAD + (lng - (cLng - hLng)) / (hLng * 2) * (vb.width - PAD * 2);
+  const vy = PAD + ((cLat + hLat) - lat) / (hLat * 2) * (vb.height - PAD * 2);
+  return { x:(r.left - fr.left) + vx / vb.width * r.width,
+           y:(r.top  - fr.top ) + vy / vb.height * r.height };
+}
+
+function drawSimOverlay(){
+  const svg = $('simOverlay'); if(!svg) return;
+  if(!simShow || !simResult || !simResult.list.length){ svg.innerHTML = ''; return; }
+  const frame = document.querySelector('.map-frame');
+  const w = frame.clientWidth, h = frame.clientHeight;
+  svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
+  svg.setAttribute('width', w); svg.setAttribute('height', h);
+
+  const src = GRAPH.V.find(n => n.id === simResult.from);
+  const s0 = src && projectOnMap(src.lat, src.lng);
+  if(!s0){ svg.innerHTML = ''; return; }
+
+  const maxAdd = Math.max(...simResult.list.map(x => x.add));
+  let defs = '', arcs = '', dots = '';
+  simResult.list.forEach((x, i) => {
+    const n = GRAPH.V.find(v => v.id === x.id);
+    if(!n) return;
+    const pt = projectOnMap(n.lat, n.lng); if(!pt) return;
+    const lv = levelFor(x.pct);
+    const wgt = 1.5 + (x.add / maxAdd) * 5;
+    /* 살짝 휘어 그려 겹침을 피합니다 */
+    const mx = (s0.x + pt.x) / 2, my = (s0.y + pt.y) / 2;
+    const dx = pt.x - s0.x, dy = pt.y - s0.y, len = Math.hypot(dx, dy) || 1;
+    const cx = mx - dy / len * 22, cy = my + dx / len * 22;
+    defs += `<marker id="sa${i}" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="4.5" markerHeight="4.5"
+      orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="${lv.color}"/></marker>`;
+    arcs += `<path d="M${s0.x.toFixed(1)} ${s0.y.toFixed(1)} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}"
+      fill="none" stroke="${lv.color}" stroke-width="${wgt.toFixed(1)}" stroke-linecap="round"
+      opacity="0.75" marker-end="url(#sa${i})"
+      stroke-dasharray="${len.toFixed(0)}" stroke-dashoffset="${len.toFixed(0)}">
+      <animate attributeName="stroke-dashoffset" from="${len.toFixed(0)}" to="0"
+        dur="${(0.5 + x.at / 30).toFixed(2)}s" begin="${(x.at / 45).toFixed(2)}s" fill="freeze"/></path>`;
+    dots += `<g opacity="0"><animate attributeName="opacity" from="0" to="1"
+        dur="0.3s" begin="${(x.at / 45 + 0.5).toFixed(2)}s" fill="freeze"/>
+      <circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${(6 + x.add / maxAdd * 8).toFixed(1)}"
+        fill="${lv.color}" opacity=".25"/>
+      <text x="${pt.x.toFixed(1)}" y="${(pt.y - 12).toFixed(1)}" text-anchor="middle"
+        style="font-size:11px;font-weight:800;fill:${lv.color}"
+        stroke="var(--card)" stroke-width="3" paint-order="stroke">+${fmt(x.add)}</text>
+      <text x="${pt.x.toFixed(1)}" y="${(pt.y + 20).toFixed(1)}" text-anchor="middle"
+        style="font-family:var(--mono);font-size:9.5px;fill:${lv.color}"
+        stroke="var(--card)" stroke-width="3" paint-order="stroke">+${x.at}분</text></g>`;
+  });
+  /* 출발점 */
+  dots += `<circle cx="${s0.x.toFixed(1)}" cy="${s0.y.toFixed(1)}" r="11" fill="none"
+      stroke="var(--road)" stroke-width="2.5" opacity=".9">
+      <animate attributeName="r" values="9;16;9" dur="1.6s" repeatCount="indefinite"/>
+      <animate attributeName="opacity" values=".9;.2;.9" dur="1.6s" repeatCount="indefinite"/></circle>`;
+  svg.innerHTML = `<defs>${defs}</defs>${arcs}${dots}`;
+}
+
+$('simTog').addEventListener('click', () => {
+  simShow = !simShow;
+  $('simTog').classList.toggle('on', simShow);
+  $('simTog').textContent = simShow ? '도미노 숨기기' : '도미노 보기';
+  drawSimOverlay();
+  if(simShow && simResult){
+    const n = GRAPH.V.find(v => v.id === simResult.from);
+    toast((n ? n.name : '') + ' ' + fmt(simAmt) + '명 충격');
+  }
+});
 
 /* ─── OpenStreetMap 지도 ─── */
 let leafMap = null;
@@ -2257,7 +2474,7 @@ function initSvgMap(){
   const barW = Math.min(VW * 0.4, kmInDeg / (E - W) * VW);
 
   el.innerHTML = `
-    <svg viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:100%">
+    <svg class="svgmap" viewBox="0 0 ${VW} ${VH}" xmlns="http://www.w3.org/2000/svg" style="display:block;width:100%;height:100%">
       <rect width="${VW}" height="${VH}" fill="#E6EBF3"/>
       <g stroke="#DCE3EE" stroke-width="1">
         ${[1,2,3,4].map(i => `<line x1="0" y1="${VH*i/5}" x2="${VW}" y2="${VH*i/5}"/>`).join('')}
@@ -2391,6 +2608,9 @@ function initMap(){
     nodeMarkers[n.name] = m;
   });
 
+  if(typeof leafMap.on === 'function'){
+    leafMap.on('move zoom resize', () => { if(simShow) drawSimOverlay(); });
+  }
   refreshMap(60); refreshMap(400);
 }
 
@@ -2514,6 +2734,7 @@ $('tabbar').addEventListener('click', e => {
   if(btn.dataset.tab === 'map') ensureMap();
   if(btn.dataset.tab === 'predict') setTimeout(scrollWxToHour, 80);
   if(btn.dataset.tab === 'hours') render();
+  if(btn.dataset.tab === 'map') setTimeout(drawSimOverlay, 260);
 });
 const goTab = n => document.querySelector(`#tabbar button[data-tab="${n}"]`).click();
 
@@ -2609,6 +2830,7 @@ function render(){
 
   drawSpark(selPoi);
   buildFlow(selPoi);
+  buildAnomaly();
   buildSim();
   buildWxNow();
 
