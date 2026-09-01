@@ -421,6 +421,8 @@ if(typeof L === 'undefined'){
     letter-spacing:-.02em;transition:background .16s, color .16s, border-color .16s;}
   .simtog.on{background:var(--road-soft);color:var(--road);border-style:solid;border-color:var(--road);}
   #simOverlay{position:absolute;inset:0;pointer-events:none;z-index:5;}
+  .simhint{font-size:11.5px;color:var(--road);text-align:center;padding:2px 0 6px;font-weight:600;}
+  .nodehit{cursor:pointer;}
   .map-frame{position:relative;}
 
   /* ── 이상 징후 ── */
@@ -455,6 +457,9 @@ if(typeof L === 'undefined'){
   .sim-amt{flex:1;display:flex;align-items:center;gap:11px;}
   .sim-amt input{flex:1;}
   .sim-amt b{font-family:var(--mono);font-size:13px;min-width:52px;text-align:right;letter-spacing:-.03em;}
+  .sim-lead{padding:13px 16px;font-size:13px;line-height:1.6;color:var(--ink-2);
+    letter-spacing:-.02em;border-bottom:1px solid var(--line-2);background:var(--paper);}
+  .sim-lead b{color:var(--ink);font-weight:800;}
   .sim-out{padding:4px 0 0;}
   .srow{display:grid;grid-template-columns:44px 1fr auto;gap:11px;align-items:center;
     padding:11px 16px;border-bottom:1px solid var(--line-2);}
@@ -690,6 +695,7 @@ if(typeof L === 'undefined'){
           <span><i class="sw" style="background:#E03427"></i>위험</span>
         </div>
         <button class="simtog" id="simTog">도미노 보기</button>
+        <div class="simhint" id="simHint" hidden>지도에서 지점을 누르면 그곳에서 시작합니다</div>
         <div class="legend node-legend">
           <span><i class="sw" style="background:#4A6FE3"></i>학교 <small>학사일정 반영</small></span>
           <span><i class="sw" style="background:#7C8CA3"></i>주거 <small>실측 반영</small></span>
@@ -763,6 +769,7 @@ if(typeof L === 'undefined'){
             <b id="simAmtLabel">500명</b>
           </div>
         </div>
+        <div class="sim-lead" id="simLead"></div>
         <div class="sim-out" id="simOut"></div>
       </div>
 
@@ -2300,8 +2307,18 @@ function buildSim(){
   const box = $('simOut');
   if(!res.length){
     box.innerHTML = '<div class="snone">이 인원으로는 이웃까지 뚜렷하게 번지지 않아요</div>';
+    $('simLead').textContent = '';
     return;
   }
+  /* 한 줄 요약 — 발표에서 바로 읽을 수 있게 */
+  const worst = res.reduce((a, b) => (b.pct > a.pct ? b : a), res[0]);
+  const wlv = levelFor(worst.pct);
+  const srcName = (GRAPH.V.find(v => v.id === simFrom) || {}).name || '';
+  $('simLead').innerHTML =
+    `<b>${srcName}</b>에 <b>${fmt(simAmt)}명</b>이 몰리면, `
+  + `<b style="color:${wlv.color}">${worst.at}분 뒤 ${worst.name}</b>가 `
+  + `<b style="color:${wlv.color}">${wlv.label}</b>(+${worst.pct}%)이 됩니다`;
+
   box.innerHTML = res.map(x => {
     const lv = levelFor(x.pct);
     return `<div class="srow">
@@ -2368,34 +2385,44 @@ function drawSimOverlay(){
 
   const maxAdd = Math.max(...simResult.list.map(x => x.add));
   let defs = '', arcs = '', dots = '';
+  const placedLbl = [{ x:s0.x, y:s0.y }];   /* 출발점 자리부터 잡아둡니다 */
   simResult.list.forEach((x, i) => {
     const n = GRAPH.V.find(v => v.id === x.id);
     if(!n) return;
     const pt = projectOnMap(n.lat, n.lng); if(!pt) return;
     const lv = levelFor(x.pct);
-    const wgt = 1.5 + (x.add / maxAdd) * 5;
+    const wgt = 1.4 + (x.add / maxAdd) * 3.4;
     /* 살짝 휘어 그려 겹침을 피합니다 */
-    const mx = (s0.x + pt.x) / 2, my = (s0.y + pt.y) / 2;
-    const dx = pt.x - s0.x, dy = pt.y - s0.y, len = Math.hypot(dx, dy) || 1;
-    const cx = mx - dy / len * 22, cy = my + dx / len * 22;
+    const dx = pt.x - s0.x, dy = pt.y - s0.y, len0 = Math.hypot(dx, dy) || 1;
+    const ux = dx / len0, uy = dy / len0;
+    /* 노드 원에 겹치지 않게 양끝을 띄웁니다 */
+    const ax = s0.x + ux * 15, ay = s0.y + uy * 15;
+    const bx = pt.x - ux * 16, by = pt.y - uy * 16;
+    const len = Math.hypot(bx - ax, by - ay) || 1;
+    const mx = (ax + bx) / 2, my = (ay + by) / 2;
+    const bend = Math.min(26, len * 0.16);
+    const cx = mx - uy * bend, cy = my + ux * bend;
     defs += `<marker id="sa${i}" viewBox="0 0 8 8" refX="6" refY="4" markerWidth="4.5" markerHeight="4.5"
       orient="auto"><path d="M0 0 L8 4 L0 8 z" fill="${lv.color}"/></marker>`;
-    arcs += `<path d="M${s0.x.toFixed(1)} ${s0.y.toFixed(1)} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${pt.x.toFixed(1)} ${pt.y.toFixed(1)}"
+    arcs += `<path d="M${ax.toFixed(1)} ${ay.toFixed(1)} Q${cx.toFixed(1)} ${cy.toFixed(1)} ${bx.toFixed(1)} ${by.toFixed(1)}"
       fill="none" stroke="${lv.color}" stroke-width="${wgt.toFixed(1)}" stroke-linecap="round"
       opacity="0.75" marker-end="url(#sa${i})"
       stroke-dasharray="${len.toFixed(0)}" stroke-dashoffset="${len.toFixed(0)}">
       <animate attributeName="stroke-dashoffset" from="${len.toFixed(0)}" to="0"
         dur="${(0.5 + x.at / 30).toFixed(2)}s" begin="${(x.at / 45).toFixed(2)}s" fill="freeze"/></path>`;
+    /* 라벨이 겹치면 아래쪽으로 내립니다 */
+    const near = placedLbl.some(q => Math.abs(q.x - pt.x) < 62 && Math.abs(q.y - pt.y) < 30);
+    placedLbl.push({ x:pt.x, y:pt.y });
+    const ly = near ? pt.y + 26 : pt.y - 13;
     dots += `<g opacity="0"><animate attributeName="opacity" from="0" to="1"
         dur="0.3s" begin="${(x.at / 45 + 0.5).toFixed(2)}s" fill="freeze"/>
-      <circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${(6 + x.add / maxAdd * 8).toFixed(1)}"
-        fill="${lv.color}" opacity=".25"/>
-      <text x="${pt.x.toFixed(1)}" y="${(pt.y - 12).toFixed(1)}" text-anchor="middle"
+      <circle cx="${pt.x.toFixed(1)}" cy="${pt.y.toFixed(1)}" r="${(6 + x.add / maxAdd * 7).toFixed(1)}"
+        fill="${lv.color}" opacity=".22"/>
+      <text x="${pt.x.toFixed(1)}" y="${ly.toFixed(1)}" text-anchor="middle"
         style="font-size:11px;font-weight:800;fill:${lv.color}"
-        stroke="var(--card)" stroke-width="3" paint-order="stroke">+${fmt(x.add)}</text>
-      <text x="${pt.x.toFixed(1)}" y="${(pt.y + 20).toFixed(1)}" text-anchor="middle"
-        style="font-family:var(--mono);font-size:9.5px;fill:${lv.color}"
-        stroke="var(--card)" stroke-width="3" paint-order="stroke">+${x.at}분</text></g>`;
+        stroke="var(--card)" stroke-width="3.2" paint-order="stroke"
+        >+${fmt(x.add)} <tspan style="font-family:var(--mono);font-size:9px;font-weight:600"
+        >${x.at}분</tspan></text></g>`;
   });
   /* 출발점 */
   dots += `<circle cx="${s0.x.toFixed(1)}" cy="${s0.y.toFixed(1)}" r="11" fill="none"
@@ -2405,10 +2432,34 @@ function drawSimOverlay(){
   svg.innerHTML = `<defs>${defs}</defs>${arcs}${dots}`;
 }
 
+/* 지도 클릭 위임 — 오프라인·온라인 모두 여기서 처리 */
+document.addEventListener('click', e => {
+  const hit = e.target.closest('.nodehit'); if(!hit) return;
+  const id = hit.dataset.node; if(!id) return;
+  if(simShow){ setSimSource(id); return; }       /* 도미노 모드면 출발점 변경 */
+  if(POIS.some(p => p.id === id)){ selectedPoiId = id; render(); }
+});
+
+/* 지도에서 노드를 눌러 도미노 출발점을 바꿉니다 */
+function setSimSource(id){
+  const n = GRAPH.V.find(v => v.id === id); if(!n) return;
+  simFrom = id; simScn = null;
+  if(!simShow){                       /* 꺼져 있으면 자동으로 켭니다 */
+    simShow = true;
+    $('simTog').classList.add('on');
+    $('simTog').textContent = '도미노 숨기기';
+  }
+  buildSim();
+  drawSimOverlay();
+  toast(n.name + ' 에서 ' + fmt(simAmt) + '명 충격');
+}
+
 $('simTog').addEventListener('click', () => {
   simShow = !simShow;
   $('simTog').classList.toggle('on', simShow);
   $('simTog').textContent = simShow ? '도미노 숨기기' : '도미노 보기';
+  const hint = $('simHint');
+  if(hint) hint.hidden = !simShow;
   drawSimOverlay();
   if(simShow && simResult){
     const n = GRAPH.V.find(v => v.id === simResult.from);
@@ -2487,7 +2538,7 @@ function initSvgMap(){
       ${POIS.map(p => `
         <g>
           <circle id="svgring-${p.id}" cx="${px(p.lng)}" cy="${py(p.lat)}" r="17" fill="none" stroke="#16202E" stroke-width="0"/>
-          <circle id="svgdot-${p.id}" cx="${px(p.lng)}" cy="${py(p.lat)}" r="12" fill="#00A05A" stroke="#fff" stroke-width="2.5" style="cursor:pointer"/>
+          <circle id="svgdot-${p.id}" class="nodehit" data-node="${p.id}" cx="${px(p.lng)}" cy="${py(p.lat)}" r="12" fill="#00A05A" stroke="#fff" stroke-width="2.5" style="cursor:pointer"/>
           <text x="${px(p.lng)}" y="${py(p.lat) - 26}" text-anchor="middle"
                 style="font-size:17px;font-weight:600;fill:#3D4959">${p.short}</text>
           <text id="svgnum-${p.id}" x="${px(p.lng)}" y="${py(p.lat) + 34}" text-anchor="middle"
@@ -2509,7 +2560,8 @@ function initSvgMap(){
           const ly = near ? y + 20 : y - 11;
           return `
         <g>
-          <circle id="svgnode-${n.name}" cx="${x}" cy="${y}" r="5"
+          <circle id="svgnode-${n.name}" class="nodehit" data-node="apt:${n.name}"
+                  cx="${x}" cy="${y}" r="5"
                   fill="${NODE_COLOR[n.type]}" stroke="#fff" stroke-width="1.4" opacity="0.85"/>
           <text x="${x}" y="${ly}" text-anchor="middle"
                 style="font-size:11px;font-weight:600;fill:${NODE_COLOR[n.type]}"
@@ -2528,7 +2580,8 @@ function initSvgMap(){
           const ly = near ? y + 24 : y - 12;   /* 겹치면 아래로 */
           return `
         <g>
-          <circle id="svgsch-${sc.name}" cx="${x}" cy="${y}" r="6"
+          <circle id="svgsch-${sc.name}" class="nodehit" data-node="sch:${sc.name}"
+                  cx="${x}" cy="${y}" r="6"
                   fill="#4A6FE3" stroke="#fff" stroke-width="1.6"/>
           <text x="${x}" y="${ly}" text-anchor="middle"
                 style="font-size:12.5px;font-weight:700;fill:#4A6FE3"
@@ -2583,7 +2636,10 @@ function initMap(){
       fillColor: '#00A05A', fillOpacity: 0.9
     }).addTo(leafMap);
     m.bindTooltip('', {permanent:true, direction:'top', offset:[0,-10], className:'poi-tip'});
-    m.on('click', () => { selectedPoiId = poi.id; render(); });
+    m.on('click', () => {
+      if(simShow){ setSimSource(poi.id); return; }   /* 도미노 모드면 출발점 변경 */
+      selectedPoiId = poi.id; render();
+    });
     poiMarkers[poi.id] = m;
   });
 
@@ -2594,6 +2650,7 @@ function initMap(){
       fillColor: '#4A6FE3', fillOpacity: 0.9
     }).addTo(leafMap);
     m.bindTooltip('', { permanent:true, direction:'top', offset:[0,-8], className:'poi-tip sch-tip' });
+    if(typeof m.on === 'function') m.on('click', () => { if(simShow) setSimSource('sch:' + sc.name); });
     schoolMarkers[sc.name] = m;
   });
 
@@ -2605,6 +2662,7 @@ function initMap(){
     }).addTo(leafMap);
     m.bindTooltip(n.name,
       { permanent:true, direction:'top', offset:[0,-6], className:'poi-tip node-tip' });
+    if(typeof m.on === 'function' && n.daily) m.on('click', () => { if(simShow) setSimSource('apt:' + n.name); });
     nodeMarkers[n.name] = m;
   });
 
