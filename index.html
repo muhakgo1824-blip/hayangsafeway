@@ -295,6 +295,9 @@ if(typeof L === 'undefined'){
     font-family:var(--mono);font-size:11.5px;font-weight:800;display:grid;place-items:center;
     transition:background .2s, color .2s;}
   .place:first-child .rankno{background:var(--ink);color:#fff;}
+  .kindtag{font-style:normal;font-size:10px;font-weight:700;color:var(--ink-3);
+    background:var(--paper);border-radius:5px;padding:2px 5px;margin-left:6px;
+    vertical-align:middle;letter-spacing:-.01em;}
   .place .nm{font-weight:600;letter-spacing:-.03em;font-size:16px;}
   .place .ppl{font-family:var(--mono);font-size:12.5px;color:var(--ink-3);margin-top:4px;display:block;letter-spacing:-.02em;}
   .place .meter{height:6px;border-radius:99px;background:var(--paper);margin-top:8px;overflow:hidden;}
@@ -676,7 +679,7 @@ if(typeof L === 'undefined'){
       <div class="sec-title"><span>오늘 흐름</span><small id="flowPoi">하양역</small></div>
       <div class="card" id="flowCard"></div>
 
-      <div class="sec-title"><span id="nowListTitle">지금 혼잡한 곳</span></div>
+      <div class="sec-title"><span id="nowListTitle">지금 혼잡한 곳</span><small>전체 14곳 중 TOP 3</small></div>
       <div class="card places" id="placesNow"></div>
     </section>
 
@@ -712,7 +715,7 @@ if(typeof L === 'undefined'){
         </div>
       </div>
 
-      <div class="sec-title"><span>이 시간대 혼잡한 곳</span></div>
+      <div class="sec-title"><span>이 시간대 혼잡한 곳</span><small>전체 14곳 중 TOP 3</small></div>
       <div class="card places" id="placesMap"></div>
     </section>
 
@@ -2146,9 +2149,19 @@ const GRAPH = (() => {
       /* 이동 시간: 600m 넘으면 버스도 섞인다고 보고 조금 빠르게 */
       const lag = m > 600 ? Math.round(m/95 + 4) : Math.round(m/67);
       E.push({ from:V[i].id, to:V[j].id, m:Math.round(m),
-               w:+(decay * aff * 0.42).toFixed(4), lag:Math.max(1, lag) });
+               raw:decay * aff, lag:Math.max(1, lag) });
     }
   }
+  /* ── 행 정규화 ──
+     한 노드에서 나가는 가중치 합이 1을 넘으면 사람이 불어납니다.
+     GNN의 정규화 인접행렬처럼, 각 행의 합이 OUT_RATIO 를 넘지 않게 맞춥니다.
+     OUT_RATIO = 충격을 받은 인원 중 이웃으로 실제 이동하는 비율. */
+  const OUT_RATIO = 0.55;
+  V.forEach(n => {
+    const outs = E.filter(e => e.from === n.id);
+    const sum = outs.reduce((a, e) => a + e.raw, 0) || 1;
+    outs.forEach(e => { e.w = +(e.raw / sum * OUT_RATIO).toFixed(4); });
+  });
   return { V, E };
 })();
 
@@ -2797,27 +2810,34 @@ $('tabbar').addEventListener('click', e => {
 const goTab = n => document.querySelector(`#tabbar button[data-tab="${n}"]`).click();
 
 /* ── 목록 ── */
+/* 14개 노드 전체에서 그 시각 가장 붐비는 곳 상위 3곳
+   ⚠️ 종류마다 위험도 기준이 달라, 순위는 '인원'으로 매기고 등급은 참고로 붙입니다. */
 function buildPlaces(container, hour){
   container.innerHTML = '';
-  POIS.map(poi => ({poi, pct:congestionFor(poi, hour), ppl:peopleFor(poi, hour)}))
-      .sort((a,b) => b.pct - a.pct)
-      .forEach((it, i) => {
-        const lv = levelFor(it.pct);
-        const btn = document.createElement('button');
-        btn.className = 'place' + (it.poi.id === selectedPoiId ? ' sel' : '');
-        btn.setAttribute('aria-label',
-          `${it.poi.name} 혼잡도 ${lv.label}, 시간당 약 ${fmt(it.ppl)}명`);
-        btn.innerHTML = `
-          <span class="rankno">${i+1}</span>
-          <span>
-            <span class="nm">${it.poi.name}</span>
-            <span class="ppl">${fmt(it.ppl)}명/시간</span>
-            <span class="meter"><i style="width:${Math.min(it.pct,150)/1.5}%;background:${lv.color}"></i></span>
-          </span>
-          <span class="chip ${lv.key}">${lv.label}</span>`;
-        btn.addEventListener('click', () => { selectedPoiId = it.poi.id; render(); goTab('hours'); });
-        container.appendChild(btn);
-      });
+  const KIND_LABEL = { poi:'', school:'학교', apt:'아파트' };
+  hourTargets()
+    .map(t => ({ t, ppl:t.people(hour), pct:t.pct(hour), load:t.load ? t.load(hour) : 0 }))
+    .filter(x => x.ppl > 0)
+    .sort((a, b) => b.ppl - a.ppl)
+    .slice(0, 3)
+    .forEach((it, i) => {
+      const lv = levelFor(it.pct);
+      const btn = document.createElement('button');
+      btn.className = 'place' + (it.t.key === selectedPoiId ? ' sel' : '');
+      btn.setAttribute('aria-label',
+        `${it.t.name} 시간당 약 ${fmt(it.ppl)}명, ${lv.label}`);
+      const tag = KIND_LABEL[it.t.kind];
+      btn.innerHTML = `
+        <span class="rankno">${i+1}</span>
+        <span>
+          <span class="nm">${it.t.name}${tag ? `<em class="kindtag">${tag}</em>` : ''}</span>
+          <span class="ppl">${fmt(it.ppl)}명/시간</span>
+          <span class="meter"><i style="width:${Math.min(it.load || it.pct, 150)/1.5}%;background:${lv.color}"></i></span>
+        </span>
+        <span class="chip ${lv.key}">${lv.label}</span>`;
+      btn.addEventListener('click', () => { selectedPoiId = it.t.key; render(); goTab('hours'); });
+      container.appendChild(btn);
+    });
 }
 
 /* ── 메인 렌더 ── */
