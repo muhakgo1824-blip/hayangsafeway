@@ -150,7 +150,7 @@ if(typeof L === 'undefined'){
   .mgrp{font-size:10.5px;font-weight:700;color:var(--ink-3);letter-spacing:.02em;
     padding:9px 11px 4px;}
   .mgrp:first-child{padding-top:4px;}
-  .pick-menu button{display:flex;width:100%;align-items:center;gap:9px;border:none;background:none;
+  .pick-menu button{min-height:44px;display:flex;width:100%;align-items:center;gap:9px;border:none;background:none;
     padding:10px 11px;border-radius:11px;font-size:13.5px;font-weight:600;color:var(--ink-2);
     text-align:left;letter-spacing:-.025em;}
   .pick-menu button.on{background:var(--paper);color:var(--ink);font-weight:700;}
@@ -224,6 +224,7 @@ if(typeof L === 'undefined'){
   .panel-top .ptitle i{width:6px;height:6px;border-radius:50%;background:var(--lvc,#4A5A64);
     box-shadow:0 0 10px var(--lvc,transparent);transition:background .5s, box-shadow .5s;}
   .stamp{background:rgba(255,255,255,.06);border:none;color:#93A3AD;font-size:11.5px;font-weight:600;
+    min-height:32px;
     letter-spacing:.02em;padding:5px 10px;border-radius:999px;font-family:inherit;
     transition:background .18s, color .18s;}
   .stamp.back{color:#C3D0D7;background:rgba(255,255,255,.12);}
@@ -623,7 +624,7 @@ if(typeof L === 'undefined'){
   .sheet-grab i{width:38px;height:4px;border-radius:99px;background:#CBD3CE;}
   .sheet-head{display:flex;align-items:center;justify-content:space-between;padding:6px 18px 12px;flex-shrink:0;}
   .sheet-head .t{font-size:16px;font-weight:700;letter-spacing:-.035em;}
-  .sheet-x{background:var(--card);border:1px solid var(--line);border-radius:999px;width:30px;height:30px;
+  .sheet-x{min-width:40px;min-height:40px;background:var(--card);border:1px solid var(--line);border-radius:999px;width:30px;height:30px;
     display:grid;place-items:center;font-size:14px;color:var(--ink-2);}
   .sheet-body{overflow-y:auto;padding:0 18px calc(22px + env(safe-area-inset-bottom));-webkit-overflow-scrolling:touch;}
 
@@ -2488,7 +2489,6 @@ $('scnRow').addEventListener('click', e => {
   simScn = sc.key; simFrom = sc.node; simAmt = sc.amt;
   buildAnomaly();
   buildSim();
-  toast(sc.desc);
 });
 $('simFrom').addEventListener('change', e => {
   simFrom = e.target.value; simScn = null; buildSim();
@@ -2593,6 +2593,16 @@ document.addEventListener('click', e => {
   if(POIS.some(p => p.id === id)){ selectedPoiId = id; render(); }
 });
 
+/* 헤더에서 지점을 바꿨을 때, 도미노가 켜져 있으면 출발점도 함께 옮깁니다.
+   (지도를 보며 지점을 바꾸는데 화살표만 딴 곳에 남아 있으면 혼란스럽습니다) */
+function syncSimSource(){
+  if(!simShow) return;
+  if(simFrom === selectedPoiId) return;
+  if(!GRAPH.V.some(v => v.id === selectedPoiId)) return;
+  simFrom = selectedPoiId; simScn = null;
+  setTimeout(drawSimOverlay, 0);
+}
+
 /* 지도에서 노드를 눌러 도미노 출발점을 바꿉니다 */
 function setSimSource(id){
   const n = GRAPH.V.find(v => v.id === id); if(!n) return;
@@ -2604,7 +2614,6 @@ function setSimSource(id){
   }
   buildSim();
   drawSimOverlay();
-  toast(n.name + ' 에서 ' + fmt(simAmt) + '명 충격');
 }
 
 $('simTog').addEventListener('click', () => {
@@ -2614,10 +2623,6 @@ $('simTog').addEventListener('click', () => {
   const hint = $('simHint');
   if(hint) hint.hidden = !simShow;
   drawSimOverlay();
-  if(simShow && simResult){
-    const n = GRAPH.V.find(v => v.id === simResult.from);
-    toast((n ? n.name : '') + ' ' + fmt(simAmt) + '명 충격');
-  }
 });
 
 /* ─── OpenStreetMap 지도 ─── */
@@ -2944,6 +2949,10 @@ $('tabbar').addEventListener('click', e => {
   /* 숨겨진 상태에서 만들어진 지도는 크기를 다시 잡아줘야 합니다 */
   if(btn.dataset.tab === 'map') ensureMap();
   if(btn.dataset.tab === 'predict') setTimeout(scrollWxToHour, 80);
+  /* 재생은 지도 탭 전용 — 나가면 멈춥니다 */
+  if(btn.dataset.tab !== 'map' && playing){
+    playing = false; clearInterval(playTimer); $('playBtn').textContent = '▶';
+  }
   if(btn.dataset.tab === 'hours') render();
   if(btn.dataset.tab === 'map') setTimeout(drawSimOverlay, 260);
 });
@@ -3054,6 +3063,7 @@ function render(){
   buildDemo(curT);
   buildCalm(curT);
   buildAnomaly();
+  syncSimSource();
   buildSim();
   buildWxNow();
 
@@ -3710,17 +3720,51 @@ function writeHash(){
 window.addEventListener('hashchange', () => { if(readHash()) render(); });
 
 /* 지금 화면을 공유합니다 */
+/* ── 공유 ──
+   navigator.share 가 있으면 카카오톡·메시지 등 앱 선택창이 뜹니다.
+   이 기능은 https 또는 localhost 에서만 동작합니다.
+   (file:// 로 열면 브라우저가 막아서 복사로 넘어갑니다) */
 async function shareView(){
-  const poi = POIS.find(p => p.id === selectedPoiId);
-  const pct = congestionFor(poi, selectedHour);
-  const text = `${poi.name} · ${DOW_KR[selectedDow]}요일 ${hourLabel(selectedHour)}\n`
-    + `혼잡도 ${levelFor(pct).label} · 약 ${fmt(peopleFor(poi, selectedHour))}명/시간`;
-  const url = location.href.split('#')[0] + `#${selectedPoiId}-${selectedDow}-${selectedHour}`;
+  const t = hourTargets().find(x => x.key === selectedPoiId) || hourTargets()[0];
+  const pct = t.pct(selectedHour);
+  const lv = levelFor(pct);
+  const text =
+      `[하양 세이프 웨이]\n`
+    + `${t.name} · ${DOW_KR[selectedDow]}요일 ${hourLabel(selectedHour)}\n`
+    + `${lv.label} · 약 ${fmt(t.people(selectedHour))}명/시간`
+    + (pct > 0 ? ` (평소보다 +${pct}%)` : '');
+  const url = location.href.split('#')[0]
+    + `#${encodeURIComponent(selectedPoiId)}-${selectedDow}-${selectedHour}`;
+
+  /* 1순위 — 다른 앱으로 보내기 */
+  if(navigator.share){
+    try{
+      await navigator.share({ title:'하양 안전알림', text, url });
+      return;
+    }catch(e){
+      if(e && e.name === 'AbortError') return;   /* 사용자가 취소 — 조용히 종료 */
+      /* 그 밖의 실패는 복사로 넘어갑니다 */
+    }
+  }
+
+  /* 2순위 — 클립보드 복사 */
+  const full = text + '\n' + url;
   try{
-    if(navigator.share){ await navigator.share({ title:'하양 안전알림', text, url }); return; }
-    await navigator.clipboard.writeText(text + '\n' + url);
-    toast('링크를 복사했어요');
-  }catch(e){ /* 사용자가 취소한 경우 */ }
+    await navigator.clipboard.writeText(full);
+    toast(navigator.share ? '복사했어요' : '복사했어요 · 앱 공유는 https에서 됩니다');
+    return;
+  }catch(e){ /* 아래 수동 복사로 */ }
+
+  /* 3순위 — 클립보드도 막혔을 때 직접 선택하게 */
+  const ta = document.createElement('textarea');
+  ta.value = full;
+  ta.style.cssText = 'position:fixed;top:50%;left:5%;width:90%;height:120px;z-index:9999;'
+    + 'font-size:13px;padding:12px;border-radius:12px;border:2px solid #17578F;';
+  document.body.appendChild(ta);
+  ta.select();
+  try{ document.execCommand('copy'); toast('복사했어요'); }
+  catch(e){ toast('길게 눌러 복사해 주세요'); }
+  setTimeout(() => ta.remove(), 2500);
 }
 $('shareBtn').addEventListener('click', shareView);
 
