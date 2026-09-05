@@ -1173,21 +1173,24 @@ const DORM_OUT = 0.70;
 const K12_SCHOOLS = [
   /* 학생수·교원수: 학교알리미(schoolinfo.go.kr) 공시값
      lat/lng: 하주초·무학고·하양초는 제공받은 좌표,
-     나머지 4곳은 Google Places 검색 확인값입니다. */
+     나머지 4곳은 Google Places 검색 확인값입니다.
+     boys/girls: 학교알리미 공시 남녀 학생수.
+     무학고·무학중은 남학교, 하양여고·하양여중은 여학교입니다. */
   { name:'무학고',   lv:'고', students:605, staff:54, cal:'muhakH',   src:'확인',
-    lat:35.9194220, lng:128.8165190, dorm:true },   /* 기숙사 운영 (150명 규모) */
+    lat:35.9194220, lng:128.8165190, dorm:true,     /* 기숙사 운영 (150명 규모) */
+    boys:605, girls:0 },                            /* 남자고등학교 */
   { name:'무학중',   lv:'중', students:629, staff:49, cal:'muhakM',   src:'확인',
-    lat:35.9196181, lng:128.8173918 },
+    lat:35.9196181, lng:128.8173918, boys:629, girls:0 },   /* 남자중학교 */
   { name:'하양여고', lv:'고', students:497, staff:46, cal:'hayangG',  src:'확인',
-    lat:35.9305441, lng:128.8263107 },
+    lat:35.9305441, lng:128.8263107, boys:0, girls:497 },   /* 여자고등학교 */
   { name:'하양여중', lv:'중', students:472, staff:36, cal:'hayangM',  src:'확인',
-    lat:35.9305719, lng:128.8268384 },
+    lat:35.9305719, lng:128.8268384, boys:0, girls:472 },   /* 여자중학교 */
   { name:'금락초',   lv:'초', students:242, staff:27, cal:'geumrakE', src:'확인',
-    lat:35.9108161, lng:128.8241899 },
+    lat:35.9108161, lng:128.8241899, boys:120, girls:122 },
   { name:'하양초',   lv:'초', students:518, staff:43, cal:'hayangE',  src:'확인',
-    lat:35.9122045, lng:128.8192442 },
+    lat:35.9122045, lng:128.8192442, boys:267, girls:251 },
   { name:'하주초',   lv:'초', students:699, staff:46, cal:'hajuE',    src:'확인',
-    lat:35.9196762, lng:128.8124912 }
+    lat:35.9196762, lng:128.8124912, boys:344, girls:355 }
 ];
 const K12_TOTAL = K12_SCHOOLS.reduce((a, s) => a + s.students + s.staff, 0);
 
@@ -3387,11 +3390,43 @@ const AGE_LABEL = ['20대', '30대', '40대', '50대', '60대+'];
 
 function buildDemo(t){
   const box = $('demoCard'); if(!box) return;
+
+  /* 학교는 학교알리미 공시 남녀 학생수를 그대로 보여줍니다 */
+  if(t.kind === 'school'){
+    const sc = K12_SCHOOLS.find(x => x.name === t.name);
+    if(sc && sc.boys != null){
+      const tot = sc.boys + sc.girls;
+      const bp = Math.round(sc.boys / tot * 100), gp = 100 - bp;
+      const kind = bp === 100 ? '남학교' : gp === 100 ? '여학교' : '남녀공학';
+      const ageBand = sc.lv === '초' ? '만 6~12세' : sc.lv === '중' ? '만 12~15세' : '만 15~18세';
+      box.innerHTML = `
+        <div class="demo-lead"><b>${kind}</b> · ${ageBand}
+          · 재학생 ${fmt(tot)}명</div>
+        <div class="drow">
+          <span class="dlb">학생</span>
+          <span class="dbar">
+            <i class="dm" style="width:${bp}%"></i>
+            <i class="df" style="width:${gp}%"></i>
+          </span>
+          <span class="dpc">${fmt(tot)}</span>
+        </div>
+        <div class="drow">
+          <span class="dlb">남 / 여</span>
+          <span class="dbar" style="background:none">
+            <span style="font-size:12px;font-weight:700;color:var(--ink-2);letter-spacing:-.02em">
+              ${fmt(sc.boys)}명 · ${fmt(sc.girls)}명</span>
+          </span>
+          <span class="dpc">${bp}:${gp}</span>
+        </div>
+        <div class="demo-legend"><span><i class="sw dmc"></i>남</span><span><i class="sw dfc"></i>여</span>
+          <small>학교알리미 공시</small></div>`;
+      return;
+    }
+  }
+
   const d = DEMO[t.key];
   if(!d){
-    const why = t.kind === 'school' ? '학교는 재학생 기준이라 연령 구성이 따로 없어요'
-              : '이 지점은 bizmap 연령 자료가 없어요';
-    box.innerHTML = `<div class="snone">${why}</div>`;
+    box.innerHTML = '<div class="snone">이 지점은 bizmap 연령 자료가 없어요</div>';
     return;
   }
   const m = d.slice(0, 5), f = d.slice(5);
