@@ -78,7 +78,7 @@ if(typeof L === 'undefined'){
     .pick-menu button.on{background:#141A1D;}
     .sheet{background:var(--paper);}
     .sheet-grab i{background:#3A464B;}
-    .place .rankno,.hrow .tg,.auto-row .vv{background:#242D31;}
+    .place .rankno,.hrow .tg,.auto-row .vv,.cctv-ic{background:#242D31;}
     .place:first-child .rankno{background:#E8EDEF;color:#101619;}
     .nav button::before{background:#E8EDEF;}
     .pill.on,.dow button.on{box-shadow:0 3px 10px rgba(0,0,0,.4);}
@@ -476,7 +476,19 @@ if(typeof L === 'undefined'){
   .sadd{font-family:var(--mono);font-size:13px;font-weight:800;letter-spacing:-.03em;}
   .snone{padding:16px;text-align:center;font-size:12.5px;color:var(--ink-3);}
 
-  /* ── 공공데이터 연동 ── */
+  /* ── CCTV 바로가기 ── */
+  .cctv{display:flex;align-items:center;gap:13px;padding:16px 17px;text-decoration:none;
+    color:inherit;transition:transform .12s var(--ease);}
+  .cctv:active{transform:scale(.985);}
+  .cctv-ic{width:38px;height:38px;border-radius:12px;background:var(--road-soft);
+    display:grid;place-items:center;font-size:19px;flex-shrink:0;}
+  .cctv-txt{flex:1;min-width:0;}
+  .cctv-t{display:block;font-size:14.5px;font-weight:700;letter-spacing:-.03em;}
+  .cctv-s{display:block;font-size:11.5px;color:var(--ink-3);margin-top:4px;
+    line-height:1.5;letter-spacing:-.01em;}
+  .cctv-go{color:var(--road);font-size:17px;font-weight:800;flex-shrink:0;}
+
+/* ── 공공데이터 연동 ── */
   .gov{overflow:hidden;}
   .gv-row{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--line-2);}
   .gv-row:last-child{border-bottom:none;}
@@ -865,6 +877,18 @@ function renderStopResult(r){
         </div>
       </div>
 
+      <div class="sec-title"><span>실제 화면으로 확인</span></div>
+      <a class="card cctv" id="cctvLink"
+         href="https://its.gbgs.go.kr/bis.web/cctv_info.do"
+         target="_blank" rel="noopener noreferrer">
+        <span class="cctv-ic">📹</span>
+        <span class="cctv-txt">
+          <span class="cctv-t">경산시 교통정보 CCTV</span>
+          <span class="cctv-s">예측이 맞는지 실시간 영상으로 직접 확인해 보세요</span>
+        </span>
+        <span class="cctv-go">↗</span>
+      </a>
+
       <div class="sec-title"><span>이 시간대 혼잡한 곳</span><small>전체 14곳 중 TOP 3</small></div>
       <div class="card places" id="placesMap"></div>
     </section>
@@ -996,7 +1020,8 @@ function renderStopResult(r){
     <div class="keyrow">
       <label>선택된 정류소</label>
       <input id="kStop" type="text" placeholder="검색해서 고르거나 직접 입력" autocomplete="off">
-      <small>형식: 도시코드 / 정류소ID / 이름 &nbsp;(경산시 도시코드는 37050)</small>
+      <small><b>비워두면</b> 보고 있는 지점에서 가장 가까운 정류소를 자동으로 찾습니다.<br>
+        직접 넣을 때 형식: 도시코드 / 정류소ID / 이름 &nbsp;(경산시는 37050)</small>
     </div>
     <div class="keyrow">
       <label>CORS 프록시 (선택)</label>
@@ -3166,6 +3191,11 @@ function render(){
   buildDemo(curT);
   buildCalm(curT);
   buildAnomaly();
+  /* 지점이 바뀌면 그 근처 정류소로 버스 정보를 다시 받습니다 */
+  if(API_KEY.tago && !manualStop && busAutoKey &&
+     busAutoKey !== ((GRAPH.V.find(v => v.id === selectedPoiId) || {}).id)){
+    BUS_STOP.nodeId = ''; refreshGov();
+  }
   syncSimSource();
   buildSim();
   buildWxNow();
@@ -3308,11 +3338,15 @@ function hourTargets(){
    ═══════════════════════════════════════════════════════════ */
 const API_KEY = {
   airkorea: '',      /* 에어코리아 일반 인증키(Decoding) */
-  tago:     '',      /* TAGO 버스도착정보 인증키 */
+  /* TAGO 버스도착·정류소정보 인증키(Decoding)
+     ⚠️ 이 파일을 공개 저장소에 올리면 누구나 볼 수 있습니다.
+        키가 남용되면 data.go.kr 에서 재발급받으세요. */
+  tago:     'l6+pTvISLnIwbTLb9+V9TXCym3o3S+CCPxr4R+Uf05Phvo3RgPcb7NzmoCLwhRnAt3E3+bu9WyDySNW5wApW9w==',
   proxy:    ''       /* CORS 우회용 프록시 주소 (선택) */
 };
 
 const GOV = { air:null, bus:null, airErr:null, busErr:null };
+let manualStop = false;   /* 사용자가 정류소를 직접 고르면 자동 탐색을 멈춥니다 */
 
 function govUrl(u){ return API_KEY.proxy ? API_KEY.proxy + encodeURIComponent(u) : u; }
 
@@ -3346,10 +3380,34 @@ async function loadAir(){
 
 /* ── TAGO · 정류소 버스 도착정보 ──
    경산시 도시코드와 정류소 ID 가 필요합니다. 아래 값은 '연동 설정'에서 채웁니다. */
-const BUS_STOP = { cityCode:'', nodeId:'', name:'' };
+/* 경산시 도시코드는 확정값이므로 미리 넣어 둡니다.
+   nodeId 는 인증키가 있어야 조회되므로, 키가 들어오면 자동으로 찾습니다. */
+const BUS_STOP = { cityCode: GYEONGSAN_CITY, nodeId:'', name:'' };
+
+/* 지금 보고 있는 지점 근처 정류소를 자동으로 잡습니다.
+   지점을 바꿀 때마다 그 좌표에서 가장 가까운 정류소로 갱신됩니다. */
+let busAutoKey = null;
+async function autoPickStop(){
+  if(!API_KEY.tago) return false;
+  const node = GRAPH.V.find(v => v.id === selectedPoiId) || GRAPH.V[0];
+  if(!node) return false;
+  if(busAutoKey === node.id) return true;      /* 같은 지점이면 다시 찾지 않습니다 */
+  const r = await stopsNear(node.lat, node.lng);
+  if(r.err || !r.list.length){ GOV.busErr = 'nostop'; return false; }
+  const near = r.list[0];
+  BUS_STOP.cityCode = near.city || GYEONGSAN_CITY;
+  BUS_STOP.nodeId   = near.id;
+  BUS_STOP.name     = `${near.name} (${node.name} 근처 ${near.m}m)`;
+  busAutoKey = node.id;
+  return true;
+}
 
 async function loadBus(){
   if(!API_KEY.tago){ GOV.busErr = 'nokey'; return; }
+  /* 정류소가 지정돼 있지 않으면 현재 지점 근처에서 자동으로 찾습니다 */
+  if(!BUS_STOP.nodeId && !manualStop){
+    if(!await autoPickStop()) return;
+  }
   if(!BUS_STOP.cityCode || !BUS_STOP.nodeId){ GOV.busErr = 'nostop'; return; }
   /* 활용가이드 v1.0 · getSttnAcctoArvlPrearngeInfoList
      요청: cityCode, nodeId (둘 다 필수)
@@ -3380,7 +3438,7 @@ const AIR_GRADE = { 1:{t:'좋음', c:'#3B82C4'}, 2:{t:'보통', c:'#00A05A'},
                     3:{t:'나쁨', c:'#F07A13'}, 4:{t:'매우나쁨', c:'#E03427'} };
 const GOV_MSG = {
   nokey:  '인증키를 넣으면 실시간으로 표시됩니다',
-  nostop: '정류소를 지정하면 도착정보가 표시됩니다',
+  nostop: '근처에 정류소를 찾지 못했어요',
   cors:   '브라우저에서 직접 호출이 막혔어요 (CORS)',
   empty:  '지금은 받아올 자료가 없어요'
 };
@@ -3465,6 +3523,7 @@ $('kFind').addEventListener('click', async () => {
 $('stopResult').addEventListener('click', e => {
   const b = e.target.closest('.stop-item'); if(!b) return;
   $('kStop').value = `${b.dataset.city || GYEONGSAN_CITY} / ${b.dataset.id} / ${b.dataset.nm}`;
+  manualStop = true;
   $('stopResult').innerHTML = '';
   $('kSearch').value = '';
 });
@@ -3474,7 +3533,16 @@ $('keySave').addEventListener('click', () => {
   API_KEY.tago     = $('kBus').value.trim();
   API_KEY.proxy    = $('kProxy').value.trim();
   const parts = $('kStop').value.split('/').map(x => x.trim());
-  BUS_STOP.cityCode = parts[0] || ''; BUS_STOP.nodeId = parts[1] || ''; BUS_STOP.name = parts[2] || '';
+  if(parts[1]){
+    BUS_STOP.cityCode = parts[0] || GYEONGSAN_CITY;
+    BUS_STOP.nodeId   = parts[1];
+    BUS_STOP.name     = parts[2] || '';
+    manualStop = true;
+  }else{
+    /* 비워두면 보고 있는 지점 근처를 자동으로 씁니다 */
+    BUS_STOP.cityCode = GYEONGSAN_CITY; BUS_STOP.nodeId = ''; BUS_STOP.name = '';
+    manualStop = false; busAutoKey = null;
+  }
   try{ localStorage.setItem('hy_keys', JSON.stringify({ API_KEY, BUS_STOP })); }catch(e){}
   closeKeySheet();
   toast('불러오는 중');
@@ -3483,7 +3551,16 @@ $('keySave').addEventListener('click', () => {
 /* 저장된 키 복원 */
 try{
   const saved = JSON.parse(localStorage.getItem('hy_keys') || 'null');
-  if(saved){ Object.assign(API_KEY, saved.API_KEY || {}); Object.assign(BUS_STOP, saved.BUS_STOP || {}); }
+  if(saved && saved.API_KEY){
+    /* 저장된 값이 비어 있으면 코드에 박힌 키를 지우지 않습니다 */
+    Object.keys(saved.API_KEY).forEach(k => {
+      if(saved.API_KEY[k]) API_KEY[k] = saved.API_KEY[k];
+    });
+  }
+  if(saved && saved.BUS_STOP && saved.BUS_STOP.nodeId){
+    Object.assign(BUS_STOP, saved.BUS_STOP);
+    manualStop = true;
+  }
 }catch(e){}
 
 /* ── 언제 한산해지나 ──
