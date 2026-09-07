@@ -484,6 +484,7 @@ if(typeof L === 'undefined'){
   .gv-ic{width:30px;height:30px;border-radius:10px;background:var(--paper);
     display:grid;place-items:center;font-size:15px;flex-shrink:0;}
   .gv-t{font-size:14px;font-weight:700;letter-spacing:-.03em;}
+  .gv-s b{color:var(--ink-2);font-weight:800;}
   .gv-s{display:block;font-size:11px;color:var(--ink-3);margin-top:3px;line-height:1.5;letter-spacing:-.01em;}
   .gv-v{margin-left:auto;font-family:var(--mono);font-size:17px;font-weight:800;letter-spacing:-.04em;}
   .gv-set{font-size:11.5px;font-weight:700;color:var(--road);background:var(--road-soft);
@@ -494,8 +495,102 @@ if(typeof L === 'undefined'){
   .keyrow input{border:1px solid var(--line);border-radius:11px;padding:11px 13px;
     font-size:13px;font-family:var(--mono);background:var(--card);color:var(--ink);width:100%;}
   .keyrow small{font-size:10.5px;color:var(--ink-3);line-height:1.55;}
+  .near-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:4px;margin-bottom:8px;
+    scrollbar-width:none;}
+  .near-row::-webkit-scrollbar{display:none;}
+  .near-row button{background:var(--road-soft);color:var(--road);border:none;border-radius:999px;
+    padding:8px 13px;font-size:12px;font-weight:700;font-family:inherit;white-space:nowrap;
+    letter-spacing:-.02em;min-height:36px;}
+  .near-row button:active{opacity:.7;}
+  .stop-search{display:flex;gap:7px;}
+  .stop-search input{flex:1;}
+  .stop-search button{background:var(--road);color:#fff;border:none;border-radius:11px;
+    padding:0 18px;font-size:13px;font-weight:700;font-family:inherit;white-space:nowrap;}
+  .stop-search button:active{opacity:.8;}
+  .stop-result{display:flex;flex-direction:column;gap:5px;max-height:190px;overflow-y:auto;}
+  .stop-result:empty{display:none;}
+  .stop-item{display:flex;justify-content:space-between;align-items:center;gap:10px;
+    background:var(--paper);border:1px solid var(--line);border-radius:10px;
+    padding:11px 12px;text-align:left;font-family:inherit;min-height:44px;}
+  .stop-item:active{background:var(--road-soft);}
+  .stop-nm{font-size:13px;font-weight:700;letter-spacing:-.02em;}
+  .stop-id{font-family:var(--mono);font-size:10.5px;color:var(--ink-3);letter-spacing:-.03em;}
+  .stop-msg{font-size:12px;color:var(--ink-3);padding:9px 2px;line-height:1.5;}
   .keysave{width:100%;background:var(--ink);color:#fff;border:none;border-radius:13px;
     padding:14px;font-size:14px;font-weight:700;font-family:inherit;letter-spacing:-.02em;margin-top:4px;}
+
+/* ── 정류소 찾기 (TAGO 버스정류소정보 API) ──
+   활용가이드 v1.0 기준으로 두 가지 방식을 씁니다.
+
+   ① getCrdntPrxmtSttnList — 좌표 반경 500m 근접 정류소
+      요청: gpsLati, gpsLong        응답: nodeid, nodenm, citycode, gpslati, gpslong
+      우리 앱은 14개 지점의 좌표를 이미 갖고 있으므로 이 방식이 가장 정확합니다.
+
+   ② getSttnNoList — 정류소명으로 검색
+      요청: cityCode(필수), nodeNm   응답: nodeid, nodenm, nodeno, gpslati, gpslong  */
+const GYEONGSAN_CITY = '37050';   /* 경상북도 경산시 (도시코드) */
+
+function tagoErr(e){
+  return /Failed to fetch|NetworkError/.test(String(e))
+    ? '브라우저에서 직접 호출이 막혔어요 (CORS)' : String(e).slice(0, 60);
+}
+
+/* 응답에서 항목 배열을 안전하게 꺼냅니다 */
+function tagoItems(j){
+  const b = (j.response || {}).body || {};
+  const code = ((j.response || {}).header || {}).resultCode;
+  if(code && code !== '00') throw new Error('API 오류 ' + code);
+  let it = (b.items || {}).item || [];
+  if(!Array.isArray(it)) it = it ? [it] : [];
+  return it;
+}
+
+/* ① 좌표로 근처 정류소 찾기 (반경 500m) */
+async function stopsNear(lat, lng){
+  if(!API_KEY.tago) return { err:'인증키를 먼저 넣어 주세요' };
+  const u = 'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getCrdntPrxmtSttnList'
+    + '?gpsLati=' + lat + '&gpsLong=' + lng
+    + '&numOfRows=20&pageNo=1&_type=json&serviceKey=' + encodeURIComponent(API_KEY.tago);
+  try{
+    const r = await fetch(govUrl(u));
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const list = tagoItems(await r.json())
+      .filter(x => x && x.nodeid)
+      .map(x => ({
+        id: x.nodeid, name: x.nodenm, city: String(x.citycode || GYEONGSAN_CITY),
+        m: Math.round(metersBetween({lat, lng}, {lat:+x.gpslati, lng:+x.gpslong}))
+      }))
+      .sort((a, b) => a.m - b.m);
+    return list.length ? { list } : { err:'반경 500m 안에 정류소가 없어요' };
+  }catch(e){ return { err: tagoErr(e) }; }
+}
+
+/* ② 이름으로 정류소 찾기 */
+async function searchStop(keyword){
+  if(!API_KEY.tago) return { err:'인증키를 먼저 넣어 주세요' };
+  const u = 'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getSttnNoList'
+    + '?cityCode=' + GYEONGSAN_CITY
+    + '&nodeNm=' + encodeURIComponent(keyword)
+    + '&numOfRows=20&pageNo=1&_type=json&serviceKey=' + encodeURIComponent(API_KEY.tago);
+  try{
+    const r = await fetch(govUrl(u));
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const list = tagoItems(await r.json())
+      .filter(x => x && x.nodeid)
+      .map(x => ({ id:x.nodeid, name:x.nodenm, city:GYEONGSAN_CITY, no:x.nodeno || '' }));
+    return list.length ? { list } : { err:'그런 이름의 정류소를 못 찾았어요' };
+  }catch(e){ return { err: tagoErr(e) }; }
+}
+
+function renderStopResult(r){
+  const box = $('stopResult'); if(!box) return;
+  if(r.err){ box.innerHTML = `<div class="stop-msg">${r.err}</div>`; return; }
+  box.innerHTML = r.list.map(x =>
+    `<button class="stop-item" data-id="${x.id}" data-nm="${x.name}" data-city="${x.city}">
+      <span class="stop-nm">${x.name}</span>
+      <span class="stop-id">${x.m != null ? x.m + 'm · ' : ''}${x.id}</span>
+    </button>`).join('');
+}
 
 /* ── 언제 한산해지나 ── */
   .calm{margin-top:9px;}
@@ -810,6 +905,10 @@ if(typeof L === 'undefined'){
       <div class="sec-title"><span>오늘 자동 분석</span><small id="autoStamp">—</small></div>
       <div class="card" id="autoCard"></div>
 
+      <div class="sec-title"><span>버스 · 대기질</span>
+        <button class="gv-set" id="govSet">연동 설정</button></div>
+      <div class="card gov" id="govCard"></div>
+
       <div class="sec-title"><span>이상 징후</span><small>평소보다 25% 이상 몰릴 때</small></div>
       <div class="card anom" id="anomCard"></div>
 
@@ -884,9 +983,20 @@ if(typeof L === 'undefined'){
       <small>공공데이터포털 → “국토교통부_(TAGO)_버스도착정보” 활용신청</small>
     </div>
     <div class="keyrow">
-      <label>정류소 (도시코드 / 정류소ID / 이름)</label>
-      <input id="kStop" type="text" placeholder="예: 37050 / GSB377000123 / 하양역앞" autocomplete="off">
-      <small>경산시 도시코드와 정류소 ID는 TAGO “정류소정보” API 로 찾을 수 있습니다</small>
+      <label>정류소 찾기</label>
+      <div class="near-row" id="nearRow"></div>
+      <div class="stop-search">
+        <input id="kSearch" type="text" placeholder="정류소 이름으로 찾기" autocomplete="off">
+        <button id="kFind">찾기</button>
+      </div>
+      <div id="stopResult" class="stop-result"></div>
+      <small>위 지점 버튼을 누르면 그 좌표 반경 500m 안의 정류소를 찾습니다.
+        결과를 누르면 자동으로 입력됩니다.</small>
+    </div>
+    <div class="keyrow">
+      <label>선택된 정류소</label>
+      <input id="kStop" type="text" placeholder="검색해서 고르거나 직접 입력" autocomplete="off">
+      <small>형식: 도시코드 / 정류소ID / 이름 &nbsp;(경산시 도시코드는 37050)</small>
     </div>
     <div class="keyrow">
       <label>CORS 프록시 (선택)</label>
@@ -3241,18 +3351,25 @@ const BUS_STOP = { cityCode:'', nodeId:'', name:'' };
 async function loadBus(){
   if(!API_KEY.tago){ GOV.busErr = 'nokey'; return; }
   if(!BUS_STOP.cityCode || !BUS_STOP.nodeId){ GOV.busErr = 'nostop'; return; }
+  /* 활용가이드 v1.0 · getSttnAcctoArvlPrearngeInfoList
+     요청: cityCode, nodeId (둘 다 필수)
+     응답: routeno(노선번호) routetp(노선유형) arrtime(초) arrprevstationcnt(남은 정류장) */
   const u = 'https://apis.data.go.kr/1613000/ArvlInfoInqireService/getSttnAcctoArvlPrearngeInfoList'
     + '?cityCode=' + BUS_STOP.cityCode + '&nodeId=' + encodeURIComponent(BUS_STOP.nodeId)
-    + '&numOfRows=10&pageNo=1&_type=json&serviceKey=' + encodeURIComponent(API_KEY.tago);
+    + '&numOfRows=20&pageNo=1&_type=json&serviceKey=' + encodeURIComponent(API_KEY.tago);
   try{
     const r = await fetch(govUrl(u));
     if(!r.ok) throw new Error('HTTP ' + r.status);
-    const j = await r.json();
-    let items = (((j.response || {}).body || {}).items || {}).item || [];
-    if(!Array.isArray(items)) items = [items];
-    GOV.bus = items.filter(x => x).map(x => ({
-      route: x.routeno, sec: Number(x.arrtime || 0), stops: Number(x.arrprevstationcnt || 0)
-    })).sort((a, b) => a.sec - b.sec).slice(0, 5);
+    GOV.bus = tagoItems(await r.json())
+      .filter(x => x && x.routeno != null)
+      .map(x => ({
+        route: String(x.routeno),
+        type:  x.routetp || '',
+        sec:   Number(x.arrtime || 0),
+        stops: Number(x.arrprevstationcnt || 0)
+      }))
+      .sort((a, b) => a.sec - b.sec)
+      .slice(0, 5);
     GOV.busErr = GOV.bus.length ? null : 'empty';
   }catch(e){
     GOV.busErr = /Failed to fetch|NetworkError/.test(String(e)) ? 'cors' : String(e).slice(0, 60);
@@ -3289,11 +3406,15 @@ function buildGov(){
 
   /* 버스 도착 */
   if(GOV.bus && GOV.bus.length){
+    const soon = GOV.bus[0];
+    const m0 = Math.max(1, Math.round(soon.sec / 60));
     html += `<div class="gv-row">
       <span class="gv-ic" style="background:var(--road-soft);color:var(--road)">🚌</span>
-      <span><span class="gv-t">${BUS_STOP.name || '정류소'} 도착 예정</span>
+      <span><span class="gv-t">${BUS_STOP.name || '정류소'}</span>
         <span class="gv-s">${GOV.bus.map(x =>
-          `${x.route}번 ${Math.max(1, Math.round(x.sec / 60))}분`).join(' · ')}</span></span></div>`;
+          `<b>${x.route}</b> ${Math.max(1, Math.round(x.sec / 60))}분`
+          + (x.stops ? ` · ${x.stops}번째 전` : '')).join(' &nbsp;/&nbsp; ')}</span></span>
+      <span class="gv-v" style="color:var(--road)">${m0}<small style="font-size:11px">분</small></span></div>`;
   }else{
     html += `<div class="gv-row off"><span class="gv-ic">🚌</span>
       <span><span class="gv-t">버스 도착</span>
@@ -3313,16 +3434,41 @@ function openKeySheet(){
   $('kProxy').value = API_KEY.proxy;
   $('kStop').value = BUS_STOP.cityCode
     ? `${BUS_STOP.cityCode} / ${BUS_STOP.nodeId} / ${BUS_STOP.name}` : '';
+  buildNearRow();
   $('keySheet').classList.add('on'); $('howtoBack').classList.add('on');
 }
 function closeKeySheet(){ $('keySheet').classList.remove('on'); $('howtoBack').classList.remove('on'); }
-/* 공공데이터 카드는 현재 화면에서 빼둔 상태입니다.
-   인증키를 받아 되살리려면 예측 탭 마크업에 아래 두 줄을 다시 넣으세요.
-     <div class="sec-title"><span>공공데이터</span>
-       <button class="gv-set" id="govSet">연동 설정</button></div>
-     <div class="card gov" id="govCard"></div>            */
 if($('govSet')) $('govSet').addEventListener('click', openKeySheet);
 $('keyClose').addEventListener('click', closeKeySheet);
+/* 하양읍 지점 좌표로 근처 정류소 찾기 */
+function buildNearRow(){
+  const row = $('nearRow'); if(!row) return;
+  row.innerHTML = GRAPH.V.map(n =>
+    `<button data-lat="${n.lat}" data-lng="${n.lng}" data-nm="${n.name}">${n.name} 근처</button>`).join('');
+}
+$('nearRow').addEventListener('click', async e => {
+  const b = e.target.closest('button'); if(!b) return;
+  API_KEY.tago = $('kBus').value.trim();
+  API_KEY.proxy = $('kProxy').value.trim();
+  $('stopResult').innerHTML = `<div class="stop-msg">${b.dataset.nm} 근처를 찾는 중…</div>`;
+  renderStopResult(await stopsNear(b.dataset.lat, b.dataset.lng));
+});
+
+$('kFind').addEventListener('click', async () => {
+  const kw = $('kSearch').value.trim();
+  if(!kw){ $('stopResult').innerHTML = '<div class="stop-msg">정류소 이름을 입력해 주세요</div>'; return; }
+  API_KEY.tago = $('kBus').value.trim();        /* 아직 저장 전이어도 검색되게 */
+  API_KEY.proxy = $('kProxy').value.trim();
+  $('stopResult').innerHTML = '<div class="stop-msg">찾는 중…</div>';
+  renderStopResult(await searchStop(kw));
+});
+$('stopResult').addEventListener('click', e => {
+  const b = e.target.closest('.stop-item'); if(!b) return;
+  $('kStop').value = `${b.dataset.city || GYEONGSAN_CITY} / ${b.dataset.id} / ${b.dataset.nm}`;
+  $('stopResult').innerHTML = '';
+  $('kSearch').value = '';
+});
+
 $('keySave').addEventListener('click', () => {
   API_KEY.airkorea = $('kAir').value.trim();
   API_KEY.tago     = $('kBus').value.trim();
@@ -3800,7 +3946,8 @@ $('shareBtn').addEventListener('click', shareView);
 
 readHash();
 render();
-/* 공공데이터 연동은 카드가 화면에 없으므로 호출하지 않습니다 */
+buildGov();
+refreshGov();
 loadWeather(false);
 setInterval(() => { if(liveMode) render(); }, 30000);
 setInterval(() => loadWeather(false), 10 * 60 * 1000);   /* 10분마다 자동 갱신 */
