@@ -531,78 +531,7 @@ if(typeof L === 'undefined'){
   .keysave{width:100%;background:var(--ink);color:#fff;border:none;border-radius:13px;
     padding:14px;font-size:14px;font-weight:700;font-family:inherit;letter-spacing:-.02em;margin-top:4px;}
 
-/* ── 정류소 찾기 (TAGO 버스정류소정보 API) ──
-   활용가이드 v1.0 기준으로 두 가지 방식을 씁니다.
 
-   ① getCrdntPrxmtSttnList — 좌표 반경 500m 근접 정류소
-      요청: gpsLati, gpsLong        응답: nodeid, nodenm, citycode, gpslati, gpslong
-      우리 앱은 14개 지점의 좌표를 이미 갖고 있으므로 이 방식이 가장 정확합니다.
-
-   ② getSttnNoList — 정류소명으로 검색
-      요청: cityCode(필수), nodeNm   응답: nodeid, nodenm, nodeno, gpslati, gpslong  */
-const GYEONGSAN_CITY = '37050';   /* 경상북도 경산시 (도시코드) */
-
-function tagoErr(e){
-  return /Failed to fetch|NetworkError/.test(String(e))
-    ? '브라우저에서 직접 호출이 막혔어요 (CORS)' : String(e).slice(0, 60);
-}
-
-/* 응답에서 항목 배열을 안전하게 꺼냅니다 */
-function tagoItems(j){
-  const b = (j.response || {}).body || {};
-  const code = ((j.response || {}).header || {}).resultCode;
-  if(code && code !== '00') throw new Error('API 오류 ' + code);
-  let it = (b.items || {}).item || [];
-  if(!Array.isArray(it)) it = it ? [it] : [];
-  return it;
-}
-
-/* ① 좌표로 근처 정류소 찾기 (반경 500m) */
-async function stopsNear(lat, lng){
-  if(!API_KEY.tago) return { err:'인증키를 먼저 넣어 주세요' };
-  const u = 'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getCrdntPrxmtSttnList'
-    + '?gpsLati=' + lat + '&gpsLong=' + lng
-    + '&numOfRows=20&pageNo=1&_type=json&serviceKey=' + encodeURIComponent(API_KEY.tago);
-  try{
-    const r = await fetch(govUrl(u));
-    if(!r.ok) throw new Error('HTTP ' + r.status);
-    const list = tagoItems(await r.json())
-      .filter(x => x && x.nodeid)
-      .map(x => ({
-        id: x.nodeid, name: x.nodenm, city: String(x.citycode || GYEONGSAN_CITY),
-        m: Math.round(metersBetween({lat, lng}, {lat:+x.gpslati, lng:+x.gpslong}))
-      }))
-      .sort((a, b) => a.m - b.m);
-    return list.length ? { list } : { err:'반경 500m 안에 정류소가 없어요' };
-  }catch(e){ return { err: tagoErr(e) }; }
-}
-
-/* ② 이름으로 정류소 찾기 */
-async function searchStop(keyword){
-  if(!API_KEY.tago) return { err:'인증키를 먼저 넣어 주세요' };
-  const u = 'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getSttnNoList'
-    + '?cityCode=' + GYEONGSAN_CITY
-    + '&nodeNm=' + encodeURIComponent(keyword)
-    + '&numOfRows=20&pageNo=1&_type=json&serviceKey=' + encodeURIComponent(API_KEY.tago);
-  try{
-    const r = await fetch(govUrl(u));
-    if(!r.ok) throw new Error('HTTP ' + r.status);
-    const list = tagoItems(await r.json())
-      .filter(x => x && x.nodeid)
-      .map(x => ({ id:x.nodeid, name:x.nodenm, city:GYEONGSAN_CITY, no:x.nodeno || '' }));
-    return list.length ? { list } : { err:'그런 이름의 정류소를 못 찾았어요' };
-  }catch(e){ return { err: tagoErr(e) }; }
-}
-
-function renderStopResult(r){
-  const box = $('stopResult'); if(!box) return;
-  if(r.err){ box.innerHTML = `<div class="stop-msg">${r.err}</div>`; return; }
-  box.innerHTML = r.list.map(x =>
-    `<button class="stop-item" data-id="${x.id}" data-nm="${x.name}" data-city="${x.city}">
-      <span class="stop-nm">${x.name}</span>
-      <span class="stop-id">${x.m != null ? x.m + 'm · ' : ''}${x.id}</span>
-    </button>`).join('');
-}
 
 /* ── 언제 한산해지나 ── */
   .calm{margin-top:9px;}
@@ -3336,6 +3265,8 @@ function hourTargets(){
       공공데이터포털은 브라우저 직접 호출을 허용하지 않는 경우가 많습니다.
       실패하면 '연동 설정'에 안내가 뜨며, 프록시 주소를 넣어 우회할 수 있습니다.
    ═══════════════════════════════════════════════════════════ */
+const GYEONGSAN_CITY = '37050';   /* 경상북도 경산시 (TAGO 도시코드) — 확인됨 */
+
 const API_KEY = {
   airkorea: '',      /* 에어코리아 일반 인증키(Decoding) */
   /* TAGO 버스도착·정류소정보 인증키(Decoding)
@@ -3376,6 +3307,78 @@ async function loadAir(){
   }catch(e){
     GOV.airErr = /Failed to fetch|NetworkError/.test(String(e)) ? 'cors' : String(e).slice(0, 60);
   }
+}
+
+/* ── 정류소 찾기 (TAGO 버스정류소정보 API) ──
+   활용가이드 v1.0 기준으로 두 가지 방식을 씁니다.
+
+   ① getCrdntPrxmtSttnList — 좌표 반경 500m 근접 정류소
+      요청: gpsLati, gpsLong        응답: nodeid, nodenm, citycode, gpslati, gpslong
+      우리 앱은 14개 지점의 좌표를 이미 갖고 있으므로 이 방식이 가장 정확합니다.
+
+   ② getSttnNoList — 정류소명으로 검색
+      요청: cityCode(필수), nodeNm   응답: nodeid, nodenm, nodeno, gpslati, gpslong  */
+
+function tagoErr(e){
+  return /Failed to fetch|NetworkError/.test(String(e))
+    ? '브라우저에서 직접 호출이 막혔어요 (CORS)' : String(e).slice(0, 60);
+}
+
+/* 응답에서 항목 배열을 안전하게 꺼냅니다 */
+function tagoItems(j){
+  const b = (j.response || {}).body || {};
+  const code = ((j.response || {}).header || {}).resultCode;
+  if(code && code !== '00') throw new Error('API 오류 ' + code);
+  let it = (b.items || {}).item || [];
+  if(!Array.isArray(it)) it = it ? [it] : [];
+  return it;
+}
+
+/* ① 좌표로 근처 정류소 찾기 (반경 500m) */
+async function stopsNear(lat, lng){
+  if(!API_KEY.tago) return { err:'인증키를 먼저 넣어 주세요' };
+  const u = 'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getCrdntPrxmtSttnList'
+    + '?gpsLati=' + lat + '&gpsLong=' + lng
+    + '&numOfRows=20&pageNo=1&_type=json&serviceKey=' + encodeURIComponent(API_KEY.tago);
+  try{
+    const r = await fetch(govUrl(u));
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const list = tagoItems(await r.json())
+      .filter(x => x && x.nodeid)
+      .map(x => ({
+        id: x.nodeid, name: x.nodenm, city: String(x.citycode || GYEONGSAN_CITY),
+        m: Math.round(metersBetween({lat, lng}, {lat:+x.gpslati, lng:+x.gpslong}))
+      }))
+      .sort((a, b) => a.m - b.m);
+    return list.length ? { list } : { err:'반경 500m 안에 정류소가 없어요' };
+  }catch(e){ return { err: tagoErr(e) }; }
+}
+
+/* ② 이름으로 정류소 찾기 */
+async function searchStop(keyword){
+  if(!API_KEY.tago) return { err:'인증키를 먼저 넣어 주세요' };
+  const u = 'https://apis.data.go.kr/1613000/BusSttnInfoInqireService/getSttnNoList'
+    + '?cityCode=' + GYEONGSAN_CITY
+    + '&nodeNm=' + encodeURIComponent(keyword)
+    + '&numOfRows=20&pageNo=1&_type=json&serviceKey=' + encodeURIComponent(API_KEY.tago);
+  try{
+    const r = await fetch(govUrl(u));
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    const list = tagoItems(await r.json())
+      .filter(x => x && x.nodeid)
+      .map(x => ({ id:x.nodeid, name:x.nodenm, city:GYEONGSAN_CITY, no:x.nodeno || '' }));
+    return list.length ? { list } : { err:'그런 이름의 정류소를 못 찾았어요' };
+  }catch(e){ return { err: tagoErr(e) }; }
+}
+
+function renderStopResult(r){
+  const box = $('stopResult'); if(!box) return;
+  if(r.err){ box.innerHTML = `<div class="stop-msg">${r.err}</div>`; return; }
+  box.innerHTML = r.list.map(x =>
+    `<button class="stop-item" data-id="${x.id}" data-nm="${x.name}" data-city="${x.city}">
+      <span class="stop-nm">${x.name}</span>
+      <span class="stop-id">${x.m != null ? x.m + 'm · ' : ''}${x.id}</span>
+    </button>`).join('');
 }
 
 /* ── TAGO · 정류소 버스 도착정보 ──
