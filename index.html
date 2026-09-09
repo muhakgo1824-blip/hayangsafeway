@@ -2979,7 +2979,9 @@ function render(){
   panel.className = 'panel lv-' + lv.key;
   panel.style.setProperty('--lvc', lv.color);
   panel.style.setProperty('--lvglow', lv.color + '55');
-  $('heroPct').textContent = pct + '%';
+  /* 위험도 표기 — 증가율이므로 음수면 평소보다 한산하다는 뜻입니다.
+     "안전 −10%" 같은 혼란스러운 표기 대신 '평소 이하'로 보여줍니다. */
+  $('heroPct').textContent = pct > 0 ? '+' + pct + '%' : (pct === 0 ? '평소 수준' : '평소 이하');
   $('heroPlace').textContent = curT.name;
   $('heroLine').textContent = lv.label;
   countUp($('heroPeople'), curT.people(selectedHour), '');
