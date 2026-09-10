@@ -753,7 +753,6 @@ if(typeof L === 'undefined'){
         <div class="legend node-legend">
           <span><i class="sw" style="background:#4A6FE3"></i>학교 <small>학사일정 반영</small></span>
           <span><i class="sw" style="background:#7C8CA3"></i>주거 <small>실측 반영</small></span>
-          <span><i class="sw" style="background:#8A5FD1"></i>공공 <small>운영시간</small></span>
         </div>
       </div>
 
@@ -910,7 +909,7 @@ if(typeof L === 'undefined'){
    ※ lat/lng는 대략치입니다. openstreetmap.org에서 해당 지점을
      우클릭 → "Show address" 하면 정확한 좌표가 나오니 바꿔 넣으세요.
    ───────────────────────────────────────────── */
-/* 참고용 노드 8곳 — 학교·주거·공공시설. 좌표는 사용자 제공값입니다.
+/* 참고용 노드 — 주거 단지. 좌표는 사용자 제공값입니다.
    ⚠️ bizmap 실측이 없어 혼잡도 계산에는 포함하지 않고,
    지도에 위치만 표시하는 참고 마커입니다. */
 const EXTRA_NODES = [
@@ -936,24 +935,11 @@ const EXTRA_NODES = [
   { name:'LH 천년나무 4단지', type:'주거', lat:35.9208670, lng:128.8091592, homes:723,
     daily:2490, src:'bizmap #31·32',
     bin:[1.37,1.10,1.04,1.47,1.52,1.09,0.21],
-    dow:[0.141,0.143,0.133,0.146,0.142,0.147,0.149] },
-  /* 행정복지센터 — 평일 09~18시만 운영(주말·공휴일 휴무).
-     ⚠️ 방문객 수 자료가 없어 인원은 계산하지 않고, '운영 중'인지만 표시합니다. */
-  { name:'하양읍 행정복지센터', type:'공공', lat:35.9123527, lng:128.8122927,
-    openHours:[9,18], weekdayOnly:true }
+    dow:[0.141,0.143,0.133,0.146,0.142,0.147,0.149] }
 ];
 
 /* 7구간(아침~새벽) 지수를 24시간으로 펼칩니다 */
 const BIN_HOURS = [[6,7,8],[9,10,11],[12,13,14],[15,16,17],[18,19,20],[21,22,23],[0,1,2,3,4,5]];
-
-/* 지금 문을 열었는지 — 운영시간이 정해진 노드만 판정합니다 */
-function nodeOpen(n, hour, dow){
-  if(!n.openHours) return null;
-  const h = (hour == null) ? selectedHour : hour;
-  const d = (dow  == null) ? selectedDow  : dow;
-  if(n.weekdayOnly && (d === 0 || d === 6)) return false;
-  return h >= n.openHours[0] && h < n.openHours[1];
-}
 
 /* 참고 노드의 '지금 이 시각' 유동인구 — 실측 daily 가 있는 곳만 계산합니다 */
 function nodeFlow(n, hour, dow){
@@ -965,7 +951,7 @@ function nodeFlow(n, hour, dow){
   const dowIdx = n.dow[d] / (1 / 7);        /* 요일 비중을 지수로 (평균 1) */
   return Math.round(n.daily / 24 * n.bin[bi] * dowIdx);
 }
-const NODE_COLOR = { '학교':'#4A6FE3', '주거':'#7C8CA3', '공공':'#8A5FD1' };
+const NODE_COLOR = { '학교':'#4A6FE3', '주거':'#7C8CA3' };
 
 const POIS_BASE = [
   { id:'station', name:'하양역 · 대경로', short:'하양역',
@@ -2680,7 +2666,7 @@ function initSvgMap(){
         <text x="${barW/2}" y="-9" text-anchor="middle" style="font-size:13px;fill:#8B96A6">1km</text>
       </g>
       ${(() => {
-        /* 주거·공공 노드도 이름을 답니다. 서로 가까우면 위·아래로 갈라 놓습니다 */
+        /* 주거 노드도 이름을 답니다. 서로 가까우면 위·아래로 갈라 놓습니다 */
         const placed = [];
         return EXTRA_NODES.map(n => {
           const x = px(n.lng), y = py(n.lat);
@@ -2854,12 +2840,12 @@ function updateMap(){
     EXTRA_NODES.forEach(n => {
       const dot = document.getElementById('svgnode-' + n.name);
       const num = document.getElementById('svgnodenum-' + n.name);
-      const v = nodeFlow(n), open = nodeOpen(n);
+      const v = nodeFlow(n);
       if(dot){
         dot.setAttribute('r', v == null ? 5 : (4 + Math.min(v, 260) / 34).toFixed(1));
-        dot.setAttribute('opacity', open === false ? 0.3 : 0.85);
+        dot.setAttribute('opacity', 0.85);
       }
-      if(num) num.textContent = v != null ? fmt(v) : (open === false ? '종료' : '');
+      if(num) num.textContent = v != null ? fmt(v) : '';
     });
     return;
   }
@@ -2890,19 +2876,15 @@ function updateMap(){
     );
   });
 
-  /* 주거·공공 노드 — 실측이 있는 곳은 그 시각 유동인구를 보여줍니다 */
+  /* 주거 노드 — 실측이 있는 곳은 그 시각 유동인구를 보여줍니다 */
   EXTRA_NODES.forEach(n => {
     const m = nodeMarkers[n.name]; if(!m) return;
     const v = nodeFlow(n);
-    const open = nodeOpen(n);
     m.setRadius(v == null ? 5 : 4 + Math.min(v, 260) / 34);
-    /* 운영시간이 있는 곳은 닫혀 있으면 흐리게 */
-    m.setStyle({ fillOpacity: open === false ? 0.28 : 0.75 });
+    m.setStyle({ fillOpacity: 0.75 });
     m.setTooltipContent(
       `<span class="tip-nm">${n.name}</span>` +
-      (v != null   ? `<span class="tip-num" style="color:${NODE_COLOR[n.type]}">${fmt(v)}명</span>`
-     : open != null ? `<span class="tip-num" style="color:${open ? NODE_COLOR[n.type] : '#9AA6AE'}">${open ? '운영 중' : '운영 종료'}</span>`
-     : '')
+      (v != null ? `<span class="tip-num" style="color:${NODE_COLOR[n.type]}">${fmt(v)}명</span>` : '')
     );
   });
 }
