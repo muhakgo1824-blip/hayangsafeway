@@ -254,7 +254,12 @@ if(typeof L === 'undefined'){
 
   .panel-copy{min-width:0;flex:1;}
   .hero-place{font-size:14.5px;color:#9AA9B2;font-weight:600;letter-spacing:-.02em;
-    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+    white-space:nowrap;overflow:hidden;text-overflow:ellipsis;
+    display:flex;align-items:center;gap:7px;}
+  /* 실측이 아니라 예측값임을 첫 화면에서 바로 알리는 배지 */
+  .predbadge{flex-shrink:0;font-size:9.5px;font-weight:700;letter-spacing:0;
+    color:#9AA9B2;background:rgba(255,255,255,.09);
+    border:1px solid rgba(255,255,255,.14);border-radius:5px;padding:2px 6px;}
   .hero-line{font-size:44px;font-weight:800;letter-spacing:-.055em;margin:4px 0 8px;
     line-height:1;color:#fff;display:flex;align-items:baseline;gap:10px;
     text-shadow:0 2px 18px var(--lvglow, transparent);transition:text-shadow .6s;}
@@ -381,10 +386,10 @@ if(typeof L === 'undefined'){
   .hrow.past{opacity:.55;}
   .hrow.past .track i{opacity:.6;}
   .hrow.future .track{background:repeating-linear-gradient(90deg,var(--paper) 0 5px,#fff 5px 7px);}
-  .hsep{display:flex;align-items:center;gap:10px;padding:9px 14px;background:color-mix(in srgb, var(--road) 6%, var(--card));
+  /* 예측 구간 시작 구분선 — 문구 없이 선 하나로 이어집니다 */
+  .hsep{display:flex;align-items:center;padding:9px 14px;background:color-mix(in srgb, var(--road) 6%, var(--card));
     border-bottom:1px solid var(--line-2);}
-  .hsep::before,.hsep::after{content:"";flex:1;height:1px;background:var(--line);}
-  .hsep span{font-size:11px;font-weight:700;color:var(--road);letter-spacing:-.02em;white-space:nowrap;}
+  .hsep::before{content:"";flex:1;height:1px;background:var(--line);}
   .hrow:last-child{border-bottom:none;}
   .hrow.now{background:color-mix(in srgb, var(--ink) 5%, var(--card));}
   .hrow.sel{background:color-mix(in srgb, var(--ink) 2%, var(--card));}
@@ -703,7 +708,7 @@ if(typeof L === 'undefined'){
             <div class="lamp" id="lamp-safe"></div>
           </div>
           <div class="panel-copy">
-            <div class="hero-place" id="heroPlace">하양역</div>
+            <div class="hero-place"><span id="heroPlace">하양역</span><span class="predbadge">예측</span></div>
             <div class="hero-line" role="status" aria-live="polite">
               <span id="heroLine">확인 중</span><span class="lvpct" id="heroPct"></span>
             </div>
@@ -1055,10 +1060,16 @@ const DOW_INDEX = (() => {
   return out;
 })();
 
-/* 월별 계절 지수 (1~12월) — 야외 보행량의 계절 변화 */
-const MONTH_RAW = [0.88, 0.90, 1.05, 1.09, 1.10, 1.01, 0.94, 0.92, 1.06, 1.10, 1.02, 0.90];
-/* 계절에 얼마나 민감한지 (1=그대로, 0=전혀 안 변함) */
-const MONTH_SENS = { station:0.45, market:1.00, university:0.20 };
+/* ── 계절 지수 — 검증 결과에 따라 제거 ──
+   7:3 교차검증(200회) 결과, 계절 보정을 적용한 모든 방식이
+   아무 보정도 하지 않은 Constant Baseline 보다 나쁘게 나왔습니다.
+     · Population-Weighted Mean  4.6%   vs  Constant Baseline  3.9%  (−16%)
+   원인: 하양읍의 실제 계절 변동폭이 0.061(0.96~1.03)로 6%에 불과해,
+        추정값의 오차가 신호 자체보다 커집니다.
+   따라서 계절 보정을 쓰지 않습니다. (전 지점 1.00 고정)
+   ⚠️ 되살리려면 아래 두 상수를 복구하고 monthFactor 를 원래대로 되돌리세요.
+      MONTH_RAW  = [0.88,0.90,1.05,1.09,1.10,1.01,0.94,0.92,1.06,1.10,1.02,0.90]
+      MONTH_SENS = { station:0.45, market:1.00, university:0.20 } */
 
 /* 날씨 민감도 — 켜고 끄는 게 아니라 강수량·기온에 따라 연속으로 변합니다 */
 /* 날씨 민감도
@@ -1076,8 +1087,7 @@ const WX_SENS = {
 };
 
 function monthFactor(poiId, date){
-  const m = MONTH_RAW[date.getMonth()];
-  return 1 + (m - 1) * MONTH_SENS[poiId];
+  return 1;   /* 계절 보정 미사용 — 위 주석의 검증 결과 참조 */
 }
 function dowFactor(poiId, date){
   return DOW_INDEX[poiId][date.getDay()];
@@ -3087,11 +3097,10 @@ function render(){
     const past   = dayGap < 0 || (dayGap === 0 && h < now.getHours());
     if(future && firstFuture < 0) firstFuture = h;
 
-    /* 예측 구간이 시작되는 자리에 구분선 */
+    /* 예측 구간이 시작되는 자리에 구분선 (문구 없이 선만) */
     if(future && firstFuture === h && h > 0){
       const sep = document.createElement('div');
       sep.className = 'hsep';
-      sep.innerHTML = '<span>여기부터 예측</span>';
       list.appendChild(sep);
     }
     /* 검은 '지금'은 오늘의 현재 시각에만 — 다른 날·다른 시간은 표시하지 않습니다 */
